@@ -1,0 +1,656 @@
+.MusicHudRoot
+{
+    width: 100%;
+    height: 100%;
+}
+
+.MusicPlayerCard
+{
+    width: 442px;
+    height: 272px;
+    horizontal-align: right;
+    vertical-align: center;
+    margin-right: 48px;
+    padding: 16px 18px 14px 18px;
+    flow-children: down;
+    background-color: gradient(linear, 82% 100%, 0% 0%,
+        from(rgba(6, 9, 13, 0.985)),
+        color-stop(0.5, rgba(11, 16, 22, 0.985)),
+        to(rgba(18, 26, 35, 0.985)));
+    world-blur: gaussian(3, 3, 3);
+    border: 1px solid rgba(255, 255, 255, 0.065);
+    border-radius: 14px;
+    box-shadow: rgba(0, 0, 0, 0.82) 0px 2px 34px 2px;
+    color: #f3f6fb;
+    overflow: clip;
+    opacity: 1;
+    transition-property: opacity, transform, border, box-shadow;
+    transition-duration: 0.18s;
+    transition-timing-function: ease-out;
+}
+
+.MusicPlayerCard.MusicHudHidden
+{
+    visibility: collapse;
+    opacity: 0;
+    transform: translateX(18px);
+}
+
+.MusicPlayerCard.MusicHudPlaying
+{
+    border-color: rgba(79, 200, 255, 0.30);
+    box-shadow: rgba(0, 111, 164, 0.24) 0px 2px 36px 2px;
+}
+
+.MusicPlayerCard.MusicHudPaused { border-color: rgba(228, 174, 57, 0.28); }
+.MusicPlayerCard.MusicHudError { border-color: rgba(219, 68, 55, 0.30); }
+
+.AccentRail
+{
+    width: 2px;
+    height: 84px;
+    ignore-parent-flow: true;
+    position: 0px 14px 0px;
+    background-color: gradient(linear, 0% 0%, 0% 100%,
+        from(rgba(79, 200, 255, 0)),
+        color-stop(0.5, rgba(79, 200, 255, 0.62)),
+        to(rgba(79, 200, 255, 0)));
+}
+
+.MusicHeader
+{
+    width: 100%;
+    height: 78px;
+    flow-children: right;
+}
+
+.AlbumArt
+{
+    width: 62px;
+    height: 62px;
+    margin-top: 3px;
+    margin-right: 14px;
+    overflow: clip;
+    border-radius: 9px;
+    background-color: gradient(linear, 0% 100%, 100% 0%,
+        from(#c46a87),
+        color-stop(0.5, #df94a6),
+        to(#e7b56a));
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    box-shadow: rgba(0, 0, 0, 0.60) 0px 4px 12px 0px;
+    transition-property: brightness, transform;
+    transition-duration: 0.16s;
+}
+
+.AlbumArtInset
+{
+    width: 100%;
+    height: 100%;
+    background-color: gradient(radial, 28% 22%, 0% 0%, 70% 70%,
+        from(rgba(255, 255, 255, 0.30)),
+        to(rgba(255, 255, 255, 0)));
+}
+
+.AlbumNoteIcon
+{
+    width: 30px;
+    height: 30px;
+    horizontal-align: center;
+    vertical-align: center;
+    wash-color: #fff6ea;
+    opacity: 0.94;
+    img-shadow: rgba(60, 12, 28, 0.55) 0px 2px 6px 1;
+}
+
+.MusicHudPlaying .AlbumArt
+{
+    animation-name: 'music-art-pulse';
+    animation-duration: 1.9s;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+}
+
+.MusicHudLoading .AlbumArt
+{
+    animation-name: 'music-loading-pulse';
+    animation-duration: 0.72s;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+}
+
+.TrackDetails
+{
+    width: fill-parent-flow(1);
+    height: 72px;
+    flow-children: down;
+    overflow: clip;
+}
+
+.TrackKicker
+{
+    width: 100%;
+    height: 13px;
+    font-family: Stratum2 Condensed, 'Arial Unicode MS';
+    font-size: 10px;
+    font-weight: bold;
+    letter-spacing: 1.3px;
+    color: #e4ae39;
+}
+
+.TrackTitle
+{
+    width: 100%;
+    height: 25px;
+    margin-top: 1px;
+    font-family: Stratum2, 'Arial Unicode MS';
+    font-size: 21px;
+    font-weight: bold;
+    color: #f6f9fd;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-shadow: 1px 1px 3px 1 rgba(0, 0, 0, 0.65);
+}
+
+.ArtistName
+{
+    width: 100%;
+    height: 17px;
+    font-family: Stratum2, 'Arial Unicode MS';
+    font-size: 13px;
+    color: #a6b3c1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.PlayerStatus
+{
+    width: 100%;
+    height: 14px;
+    font-family: Stratum2 Condensed, 'Arial Unicode MS';
+    font-size: 9px;
+    font-weight: bold;
+    letter-spacing: 0.8px;
+    color: #4fc8ff;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.MusicHudPaused .PlayerStatus { color: #e4ae39; }
+.MusicHudLoading .PlayerStatus { color: #bda4ff; }
+.MusicHudError .PlayerStatus { color: #f0645b; }
+.MusicHudIdle .PlayerStatus { color: #7f90a0; }
+
+.Spectrum
+{
+    width: 70px;
+    height: 48px;
+    margin-top: 14px;
+    margin-left: 6px;
+}
+
+.SpectrumBars
+{
+    width: 66px;
+    height: 46px;
+    horizontal-align: center;
+    vertical-align: bottom;
+    flow-children: right;
+}
+
+.SpectrumBar
+{
+    width: 6px;
+    height: 42px;
+    margin-right: 3px;
+    vertical-align: bottom;
+    transform-origin: 50% 100%;
+    border-radius: 2px;
+    background-color: gradient(linear, 0% 100%, 0% 0%,
+        from(#0c86bd),
+        color-stop(0.55, #3fb6e8),
+        to(#7fe6ff));
+    opacity: 0.92;
+}
+
+.SpectrumBar1 { transform: scale3d(1, 0.30, 1); }
+.SpectrumBar2 { transform: scale3d(1, 0.52, 1); }
+.SpectrumBar3 { transform: scale3d(1, 0.85, 1); }
+.SpectrumBar4 { transform: scale3d(1, 1.00, 1); }
+.SpectrumBar5 { transform: scale3d(1, 0.72, 1); }
+.SpectrumBar6 { transform: scale3d(1, 0.98, 1); }
+.SpectrumBar7 { transform: scale3d(1, 0.42, 1); }
+.SpectrumBar8 { transform: scale3d(1, 0.66, 1); }
+
+.MusicHudPlaying .SpectrumBar
+{
+    animation-duration: 0.86s;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+}
+
+.MusicHudPlaying .SpectrumBar1 { animation-name: 'spectrum-a'; animation-delay: 0.00s; }
+.MusicHudPlaying .SpectrumBar2 { animation-name: 'spectrum-b'; animation-delay: -0.17s; }
+.MusicHudPlaying .SpectrumBar3 { animation-name: 'spectrum-c'; animation-delay: -0.34s; }
+.MusicHudPlaying .SpectrumBar4 { animation-name: 'spectrum-d'; animation-delay: -0.51s; }
+.MusicHudPlaying .SpectrumBar5 { animation-name: 'spectrum-a'; animation-delay: -0.68s; }
+.MusicHudPlaying .SpectrumBar6 { animation-name: 'spectrum-b'; animation-delay: -0.12s; }
+.MusicHudPlaying .SpectrumBar7 { animation-name: 'spectrum-c'; animation-delay: -0.42s; }
+.MusicHudPlaying .SpectrumBar8 { animation-name: 'spectrum-d'; animation-delay: -0.24s; }
+
+.MusicHudLoading .SpectrumBar
+{
+    animation-name: 'spectrum-loading';
+    animation-duration: 0.78s;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+}
+
+.CloseButton
+{
+    width: 26px;
+    height: 26px;
+    margin-top: 2px;
+    margin-left: 6px;
+    background-color: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 50%;
+    transition-property: background-color, border, brightness;
+    transition-duration: 0.12s;
+}
+
+.CloseIcon
+{
+    width: 13px;
+    height: 13px;
+    horizontal-align: center;
+    vertical-align: center;
+    wash-color: #8393a2;
+}
+
+.CloseButton:hover
+{
+    sound: "UIPanorama.generic_button_rollover";
+    background-color: rgba(219, 68, 55, 0.20);
+    border-color: rgba(219, 68, 55, 0.60);
+}
+
+.CloseButton:hover .CloseIcon { wash-color: #ff7167; }
+.CloseButton:active { brightness: 0.72; sound: "UIPanorama.submenu_select"; }
+
+.TimeInfo
+{
+    width: 100%;
+    height: 18px;
+    margin-top: 4px;
+    flow-children: right;
+}
+
+.TimeInfo Label
+{
+    font-family: Stratum2 Condensed, 'Arial Unicode MS';
+    font-size: 10px;
+    font-weight: bold;
+    color: #778796;
+}
+
+.CurrentTime { width: fill-parent-flow(1); text-align: left; }
+.Duration { width: fill-parent-flow(1); text-align: right; }
+
+.StreamBadge
+{
+    width: 92px;
+    height: 15px;
+    text-align: center;
+    color: #4fc8ff;
+    letter-spacing: 1.1px;
+}
+
+.MusicHudError .StreamBadge { color: #f0645b; }
+.MusicHudPaused .StreamBadge { color: #e4ae39; }
+
+.ProgressTrack
+{
+    width: 100%;
+    height: 10px;
+    margin-top: 3px;
+    background-color: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.03);
+    border-radius: 5px;
+    overflow: clip;
+}
+
+.ProgressFill
+{
+    width: 0%;
+    height: 5px;
+    vertical-align: center;
+    background-color: gradient(linear, 0% 0%, 100% 0%, from(#1f8ec2), to(#5ed9ff));
+    transition-property: width;
+    transition-duration: 0.65s;
+    transition-timing-function: linear;
+}
+
+.ProgressHandle
+{
+    width: 5px;
+    height: 9px;
+    x: 0%;
+    vertical-align: center;
+    background-color: #e9f9ff;
+    border-radius: 3px;
+    box-shadow: rgba(36, 175, 228, 0.50) 0px 0px 6px 0px;
+    transition-property: position;
+    transition-duration: 0.65s;
+    transition-timing-function: linear;
+}
+
+.Progress0 .ProgressFill { width: 0%; }
+.Progress1 .ProgressFill { width: 5%; }
+.Progress2 .ProgressFill { width: 10%; }
+.Progress3 .ProgressFill { width: 15%; }
+.Progress4 .ProgressFill { width: 20%; }
+.Progress5 .ProgressFill { width: 25%; }
+.Progress6 .ProgressFill { width: 30%; }
+.Progress7 .ProgressFill { width: 35%; }
+.Progress8 .ProgressFill { width: 40%; }
+.Progress9 .ProgressFill { width: 45%; }
+.Progress10 .ProgressFill { width: 50%; }
+.Progress11 .ProgressFill { width: 55%; }
+.Progress12 .ProgressFill { width: 60%; }
+.Progress13 .ProgressFill { width: 65%; }
+.Progress14 .ProgressFill { width: 70%; }
+.Progress15 .ProgressFill { width: 75%; }
+.Progress16 .ProgressFill { width: 80%; }
+.Progress17 .ProgressFill { width: 85%; }
+.Progress18 .ProgressFill { width: 90%; }
+.Progress19 .ProgressFill { width: 95%; }
+.Progress20 .ProgressFill { width: 100%; }
+
+.Progress0 .ProgressHandle { x: 0%; }
+.Progress1 .ProgressHandle { x: 5%; }
+.Progress2 .ProgressHandle { x: 10%; }
+.Progress3 .ProgressHandle { x: 15%; }
+.Progress4 .ProgressHandle { x: 20%; }
+.Progress5 .ProgressHandle { x: 25%; }
+.Progress6 .ProgressHandle { x: 30%; }
+.Progress7 .ProgressHandle { x: 35%; }
+.Progress8 .ProgressHandle { x: 40%; }
+.Progress9 .ProgressHandle { x: 45%; }
+.Progress10 .ProgressHandle { x: 50%; }
+.Progress11 .ProgressHandle { x: 55%; }
+.Progress12 .ProgressHandle { x: 60%; }
+.Progress13 .ProgressHandle { x: 65%; }
+.Progress14 .ProgressHandle { x: 70%; }
+.Progress15 .ProgressHandle { x: 75%; }
+.Progress16 .ProgressHandle { x: 80%; }
+.Progress17 .ProgressHandle { x: 85%; }
+.Progress18 .ProgressHandle { x: 90%; }
+.Progress19 .ProgressHandle { x: 95%; }
+.Progress20 .ProgressHandle { x: 99%; }
+
+.MusicHudLive.MusicHudPlaying .ProgressFill
+{
+    width: 42%;
+    animation-name: 'music-live-progress';
+    animation-duration: 2.4s;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+    animation-direction: alternate;
+}
+
+.MusicHudLive .ProgressHandle { visibility: collapse; }
+
+.ControlDeck
+{
+    width: 100%;
+    height: 66px;
+    margin-top: 8px;
+    padding-left: 56px;
+    padding-right: 50px;
+    flow-children: right;
+}
+
+.DeckButton
+{
+    width: 44px;
+    height: 44px;
+    margin-top: 11px;
+    margin-right: 12px;
+    background-color: gradient(linear, 0% 0%, 100% 100%,
+        from(rgba(255, 255, 255, 0.06)),
+        to(rgba(0, 0, 0, 0.24)));
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 50%;
+    transition-property: background-color, border, brightness, transform;
+    transition-duration: 0.12s;
+}
+
+.DeckButton:hover
+{
+    sound: "UIPanorama.generic_button_rollover";
+    background-color: gradient(linear, 0% 0%, 100% 100%,
+        from(rgba(79, 200, 255, 0.18)),
+        to(rgba(255, 255, 255, 0.05)));
+    border-color: rgba(79, 200, 255, 0.52);
+    brightness: 1.18;
+}
+
+.DeckButton:active
+{
+    sound: "UIPanorama.submenu_select";
+    brightness: 0.72;
+    transform: scale3d(0.94, 0.94, 1);
+}
+
+.ControlIcon
+{
+    width: 20px;
+    height: 20px;
+    horizontal-align: center;
+    vertical-align: center;
+    wash-color: #dfe8ef;
+}
+
+.PlayPauseButton
+{
+    width: 58px;
+    height: 52px;
+    margin-top: 7px;
+    background-color: gradient(linear, 0% 0%, 100% 100%,
+        from(rgba(17, 142, 194, 0.74)),
+        to(rgba(18, 86, 126, 0.86)));
+    border: 1px solid rgba(79, 200, 255, 0.66);
+    border-radius: 50%;
+    box-shadow: rgba(0, 126, 185, 0.26) 0px 0px 12px 0px;
+}
+
+.PlayPauseButton .ControlIcon
+{
+    width: 24px;
+    height: 24px;
+    wash-color: #f1fbff;
+}
+
+.PauseIcon { visibility: collapse; }
+.MusicHudPlaying .PlayIcon { visibility: collapse; }
+.MusicHudPlaying .PauseIcon { visibility: visible; }
+
+.WaitLabel
+{
+    visibility: collapse;
+    horizontal-align: center;
+    vertical-align: center;
+    font-family: Stratum2 Condensed, 'Arial Unicode MS';
+    font-size: 10px;
+    font-weight: bold;
+    letter-spacing: 0.8px;
+    color: #e8f8ff;
+}
+
+.MusicHudLoading .PlayPauseButton .ControlIcon { visibility: collapse; }
+.MusicHudLoading .WaitLabel { visibility: visible; }
+
+.VolumeButton
+{
+    width: 40px;
+    height: 40px;
+    margin-top: 13px;
+}
+
+.VolumeButton Label
+{
+    horizontal-align: center;
+    vertical-align: center;
+    font-family: Stratum2, 'Arial Unicode MS';
+    font-size: 20px;
+    font-weight: bold;
+    color: #aab7c5;
+}
+
+.VolumeButton:hover Label { color: #69d8ff; }
+
+.FooterRow
+{
+    width: 100%;
+    height: 30px;
+    flow-children: right;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    padding-top: 6px;
+}
+
+.SourceReadout
+{
+    width: fill-parent-flow(1);
+    height: 20px;
+    flow-children: right;
+}
+
+.SourceKicker,
+.SourceName,
+.VolumeText
+{
+    height: 16px;
+    font-family: Stratum2 Condensed, 'Arial Unicode MS';
+    font-size: 9px;
+    font-weight: bold;
+    letter-spacing: 0.9px;
+}
+
+.SourceKicker
+{
+    width: 44px;
+    color: #627383;
+}
+
+.SourceName
+{
+    width: 125px;
+    color: #9eb0be;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-transform: uppercase;
+}
+
+.VolumeReadout
+{
+    width: 182px;
+    height: 20px;
+    flow-children: right;
+}
+
+.VolumeText
+{
+    width: 54px;
+    color: #7f90a0;
+    text-align: right;
+}
+
+.VolumeDots
+{
+    width: 120px;
+    height: 10px;
+    margin-left: 8px;
+    margin-top: 4px;
+    flow-children: right;
+}
+
+.VolumeDot
+{
+    width: 20px;
+    height: 3px;
+    margin-right: 4px;
+    background-color: #31b7ea;
+    opacity: 0.16;
+    transition-property: opacity, background-color;
+    transition-duration: 0.12s;
+}
+
+.Volume1 .VolumeDot1,
+.Volume2 .VolumeDot1, .Volume2 .VolumeDot2,
+.Volume3 .VolumeDot1, .Volume3 .VolumeDot2, .Volume3 .VolumeDot3,
+.Volume4 .VolumeDot1, .Volume4 .VolumeDot2, .Volume4 .VolumeDot3, .Volume4 .VolumeDot4,
+.Volume5 .VolumeDot1, .Volume5 .VolumeDot2, .Volume5 .VolumeDot3, .Volume5 .VolumeDot4, .Volume5 .VolumeDot5
+{
+    opacity: 1;
+}
+
+.Volume0 .VolumeText { color: #f0645b; }
+
+@keyframes 'music-art-pulse'
+{
+    0% { transform: scale3d(1, 1, 1); brightness: 1; }
+    50% { transform: scale3d(1.03, 1.03, 1); brightness: 1.10; }
+    100% { transform: scale3d(1, 1, 1); brightness: 1; }
+}
+
+@keyframes 'music-loading-pulse'
+{
+    0% { brightness: 0.62; }
+    50% { brightness: 1.30; }
+    100% { brightness: 0.62; }
+}
+
+@keyframes 'spectrum-a'
+{
+    0% { transform: scale3d(1, 0.22, 1); opacity: 0.70; }
+    33% { transform: scale3d(1, 0.96, 1); opacity: 1; }
+    66% { transform: scale3d(1, 0.48, 1); opacity: 0.80; }
+    100% { transform: scale3d(1, 0.22, 1); opacity: 0.70; }
+}
+
+@keyframes 'spectrum-b'
+{
+    0% { transform: scale3d(1, 0.70, 1); opacity: 0.82; }
+    35% { transform: scale3d(1, 0.30, 1); opacity: 0.70; }
+    70% { transform: scale3d(1, 1.00, 1); opacity: 1; }
+    100% { transform: scale3d(1, 0.70, 1); opacity: 0.82; }
+}
+
+@keyframes 'spectrum-c'
+{
+    0% { transform: scale3d(1, 0.40, 1); opacity: 0.75; }
+    40% { transform: scale3d(1, 0.82, 1); opacity: 1; }
+    72% { transform: scale3d(1, 0.18, 1); opacity: 0.65; }
+    100% { transform: scale3d(1, 0.40, 1); opacity: 0.75; }
+}
+
+@keyframes 'spectrum-d'
+{
+    0% { transform: scale3d(1, 0.90, 1); opacity: 1; }
+    45% { transform: scale3d(1, 0.34, 1); opacity: 0.72; }
+    76% { transform: scale3d(1, 0.66, 1); opacity: 0.90; }
+    100% { transform: scale3d(1, 0.90, 1); opacity: 1; }
+}
+
+@keyframes 'spectrum-loading'
+{
+    0% { opacity: 0.22; }
+    50% { opacity: 0.85; }
+    100% { opacity: 0.22; }
+}
+
+@keyframes 'music-live-progress'
+{
+    0% { transform: translateX(-130px); opacity: 0.42; }
+    100% { transform: translateX(225px); opacity: 1; }
+}

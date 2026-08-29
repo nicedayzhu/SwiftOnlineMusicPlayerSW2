@@ -1,0 +1,291 @@
+param(
+    [ValidateSet("Validate", "Compile", "Pack", "Build")]
+    [string]$Action = "Build",
+    [string]$Cs2Root = "F:\Program Files (x86)\Steam\steamapps\common\Counter-Strike Global Offensive",
+    [string]$AddonName = "swift_online_music_player",
+    [string]$VpkEditCli = "F:\cs2dev\SkinTools\VPKEdit-Windows-Standalone-msvc-Release\vpkeditcli.exe"
+)
+
+$ErrorActionPreference = "Stop"
+Set-StrictMode -Version Latest
+
+$projectRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
+$layoutPath = Join-Path $projectRoot "hud\layout\online_music_player_custom_hud.xml"
+$stylePath = Join-Path $projectRoot "hud\styles\online_music_player_custom_hud.css"
+$iconSourceDir = Join-Path $projectRoot "hud\icons"
+$iconRasterizer = Join-Path $projectRoot "tools\rasterize_svg_icons.py"
+$iconNames = @("close", "music_note", "next", "pause", "play", "previous")
+$pluginPath = Join-Path $projectRoot "src\SwiftOnlineMusicPlayerPlugin.cs"
+$bridgePath = Join-Path $projectRoot "src\CustomHudNative.cs"
+$gameDataPath = Join-Path $projectRoot "resources\gamedata\signatures.jsonc"
+$distRoot = Join-Path $projectRoot "dist"
+$outVpk = Join-Path $distRoot "$AddonName.vpk"
+
+function Assert-FileExists {
+    param([string]$Path, [string]$Message)
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { throw $Message }
+}
+
+function Assert-DirectoryExists {
+    param([string]$Path, [string]$Message)
+    if (-not (Test-Path -LiteralPath $Path -PathType Container)) { throw $Message }
+}
+
+function Assert-SafeAddonName {
+    param([string]$Name)
+    if ([string]::IsNullOrWhiteSpace($Name) -or $Name -match '[\/:*?"<>|]') {
+        throw "AddonName must be a simple directory name: $Name"
+    }
+}
+
+function Test-PathIsChild {
+    param([string]$Path, [string]$Parent)
+    $resolvedPath = [System.IO.Path]::GetFullPath($Path).TrimEnd('\', '/')
+    $resolvedParent = [System.IO.Path]::GetFullPath($Parent).TrimEnd('\', '/')
+    return $resolvedPath.StartsWith(
+        $resolvedParent + [System.IO.Path]::DirectorySeparatorChar,
+        [System.StringComparison]::OrdinalIgnoreCase)
+}
+
+function Remove-ChildDirectory {
+    param([string]$Path, [string]$Parent)
+    if (-not (Test-Path -LiteralPath $Path)) { return }
+    if (-not (Test-PathIsChild -Path $Path -Parent $Parent)) {
+        throw "Refusing to remove path outside expected parent: $Path"
+    }
+    Remove-Item -LiteralPath $Path -Recurse -Force
+}
+
+function Write-TextNoBom {
+    param([string]$Path, [string]$Value)
+    [System.IO.File]::WriteAllText($Path, $Value, [System.Text.UTF8Encoding]::new($false))
+}
+
+function Test-HudSources {
+    foreach ($path in @($layoutPath, $stylePath, $pluginPath, $bridgePath, $gameDataPath, $iconRasterizer)) {
+        Assert-FileExists -Path $path -Message "Required source is missing: $path"
+    }
+    foreach ($iconName in $iconNames) {
+        Assert-FileExists -Path (Join-Path $iconSourceDir "$iconName.svg") -Message "Required SVG icon is missing: $iconName.svg"
+    }
+
+    [xml]$layout = Get-Content -Raw -LiteralPath $layoutPath
+    $allowedAttributes = @{
+        "root" = @()
+        "styles" = @()
+        "include" = @("src")
+        "Panel" = @("id", "class", "hittest")
+        "Label" = @("id", "class", "hittest", "text")
+        "Image" = @("id", "class", "hittest", "src", "texturewidth", "textureheight")
+        "Button" = @("id", "class")
+    }
+
+    foreach ($node in $layout.SelectNodes("//*")) {
+        if (-not $allowedAttributes.ContainsKey($node.Name)) {
+            throw "Custom HUD layout contains disallowed node: $($node.Name)"
+        }
+        foreach ($attribute in $node.Attributes) {
+            if ($allowedAttributes[$node.Name] -notcontains $attribute.Name) {
+                throw "Custom HUD layout contains disallowed attribute '$($attribute.Name)' on <$($node.Name)>"
+            }
+        }
+    }
+
+    $stylesheet = $layout.SelectSingleNode("/root/styles/include")
+    if (-not $stylesheet -or
+        $stylesheet.GetAttribute("src") -ne "s2r://panorama/styles/custom_game/online_music_player_custom_hud.vcss_c") {
+        throw "Custom HUD layout must include the compiled online music player stylesheet."
+    }
+    if ($layout.SelectSingleNode("/root/scripts")) {
+        throw "CCSCustomHudLayout does not permit a scripts node."
+    }
+    if (-not $layout.SelectSingleNode("//Panel[@id='music_dialog']")) {
+        throw "Custom HUD layout is missing #music_dialog."
+    }
+    foreach ($iconName in $iconNames) {
+        $resource = "s2r://panorama/images/custom_game/music_player/$iconName.vtex_c"
+        if (-not $layout.SelectSingleNode("//Image[@src='$resource']")) {
+            throw "Custom HUD layout is missing VTEX image reference: $resource"
+        }
+    }
+
+    $buttonIds = @($layout.SelectNodes("//Button") | ForEach-Object { $_.GetAttribute("id") })
+    $expectedButtons = @(
+        "music_player_prev",
+        "music_player_play_pause",
+        "music_player_next",
+        "music_player_volume_down",
+        "music_player_volume_up",
+        "music_player_close"
+    )
+    foreach ($buttonId in $expectedButtons) {
+        if ($buttonIds -notcontains $buttonId) { throw "Missing Button id: $buttonId" }
+    }
+    if ($buttonIds.Count -ne $expectedButtons.Count) {
+        throw "Layout contains an unexpected Button id."
+    }
+
+    $style = Get-Content -Raw -LiteralPath $stylePath
+    foreach ($step in 0..20) {
+        if ($style -notmatch [regex]::Escape(".Progress$step .ProgressFill")) {
+            throw "Stylesheet is missing Progress$step fill coverage."
+        }
+    }
+    foreach ($step in 0..5) {
+        if ($style -notmatch [regex]::Escape(".Volume$step")) {
+            throw "Stylesheet is missing Volume$step coverage."
+        }
+    }
+    foreach ($requiredStyle in @(".SpectrumBar", "@keyframes 'spectrum-a'", ".MusicHudPlaying .PauseIcon")) {
+        if ($style -notmatch [regex]::Escape($requiredStyle)) {
+            throw "Stylesheet is missing the native spectrum/icon contract: $requiredStyle"
+        }
+    }
+
+    $plugin = Get-Content -Raw -LiteralPath $pluginPath
+    foreach ($buttonId in $expectedButtons) {
+        if ($plugin -notmatch [regex]::Escape('case "' + $buttonId + '"')) {
+            throw "Plugin click allowlist is missing: $buttonId"
+        }
+    }
+    foreach ($apiUse in @("DecodeFromUrlAsync", ".Play(", ".Pause(", ".Resume(", ".SetVolume(")) {
+        if ($plugin -notmatch [regex]::Escape($apiUse)) {
+            throw "Plugin is missing expected Audio API use: $apiUse"
+        }
+    }
+
+    $gameData = Get-Content -Raw -LiteralPath $gameDataPath
+    foreach ($key in @(
+        "SetDialogVariableStringForPlayer",
+        "SetHasClassForPlayer",
+        "SetInputCaptureEnabled",
+        "CustomHudClickedReceiver")) {
+        if ($gameData -notmatch [regex]::Escape("SwiftOnlineMusicPlayerSW2::$key")) {
+            throw "GameData is missing signature key: $key"
+        }
+    }
+
+    Write-Host "Online music player source validation passed."
+    Write-Host "Verified buttons: $($buttonIds -join ', ')"
+}
+
+function Get-AddonPaths {
+    Assert-SafeAddonName -Name $AddonName
+    $contentAddonsRoot = Join-Path $Cs2Root "content\csgo_addons"
+    $gameAddonsRoot = Join-Path $Cs2Root "game\csgo_addons"
+    return [pscustomobject]@{
+        ContentAddonsRoot = $contentAddonsRoot
+        GameAddonsRoot = $gameAddonsRoot
+        ContentAddon = Join-Path $contentAddonsRoot $AddonName
+        GameAddon = Join-Path $gameAddonsRoot $AddonName
+        GameDir = Join-Path $Cs2Root "game\csgo"
+        ResourceCompiler = Join-Path $Cs2Root "game\bin\win64\resourcecompiler.exe"
+    }
+}
+
+function Compile-HudResources {
+    Test-HudSources
+    $paths = Get-AddonPaths
+    Assert-FileExists -Path $paths.ResourceCompiler -Message "resourcecompiler.exe not found: $($paths.ResourceCompiler)"
+
+    New-Item -ItemType Directory -Force -Path $paths.ContentAddonsRoot, $paths.GameAddonsRoot | Out-Null
+    Remove-ChildDirectory -Path $paths.ContentAddon -Parent $paths.ContentAddonsRoot
+    Remove-ChildDirectory -Path $paths.GameAddon -Parent $paths.GameAddonsRoot
+
+    $contentLayoutDir = Join-Path $paths.ContentAddon "panorama\layout\custom_game"
+    $contentStyleDir = Join-Path $paths.ContentAddon "panorama\styles\custom_game"
+    $contentImageDir = Join-Path $paths.ContentAddon "panorama\images\custom_game\music_player"
+    $gameLayoutDir = Join-Path $paths.GameAddon "panorama\layout\custom_game"
+    $gameStyleDir = Join-Path $paths.GameAddon "panorama\styles\custom_game"
+    $gameImageDir = Join-Path $paths.GameAddon "panorama\images\custom_game\music_player"
+    New-Item -ItemType Directory -Force -Path $contentLayoutDir, $contentStyleDir, $contentImageDir, $gameLayoutDir, $gameStyleDir, $gameImageDir | Out-Null
+
+    Set-Content -LiteralPath (Join-Path $paths.ContentAddon "panorama\preprocessor_config.txt") -Encoding ASCII -Value @'
+"PanzipCfg"
+{
+    "BlockDefs"
+    {
+    }
+}
+'@
+    Write-TextNoBom -Path (Join-Path $contentLayoutDir "online_music_player_custom_hud.vxml") -Value (Get-Content -Raw -LiteralPath $layoutPath)
+    Write-TextNoBom -Path (Join-Path $contentStyleDir "online_music_player_custom_hud.vcss") -Value (Get-Content -Raw -LiteralPath $stylePath)
+    & python $iconRasterizer --source $iconSourceDir --output $contentImageDir --size 64
+    if ($LASTEXITCODE -ne 0) { throw "SVG icon rasterization failed with exit code $LASTEXITCODE" }
+    Set-Content -LiteralPath (Join-Path $paths.ContentAddon "addoninfo.txt") -Encoding ASCII -Value @'
+<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:generic:version{7412167c-06e9-4698-aff2-e63eb59037e7} -->
+{
+    IsPlayable = false
+    Panorama =
+    {
+        AllowCustomGameUI = true
+        AddonLayoutPath = "panorama/layout/custom_game/"
+    }
+}
+'@
+
+    foreach ($iconName in $iconNames) {
+        $pngPath = Join-Path $contentImageDir "$iconName.png"
+        $vtexPath = Join-Path $contentImageDir "$iconName.vtex"
+        Assert-FileExists -Path $pngPath -Message "Rasterized icon is missing: $pngPath"
+        Assert-FileExists -Path $vtexPath -Message "Generated VTEX descriptor is missing: $vtexPath"
+        & $paths.ResourceCompiler -game $paths.GameDir -i $vtexPath -f -nop4 -v
+        if ($LASTEXITCODE -ne 0) { throw "resourcecompiler failed for $iconName.vtex with exit code $LASTEXITCODE" }
+    }
+
+    & $paths.ResourceCompiler -game $paths.GameDir `
+        -i (Join-Path $contentStyleDir "online_music_player_custom_hud.vcss") `
+        -i (Join-Path $contentLayoutDir "online_music_player_custom_hud.vxml") `
+        -f -nop4 -v
+    if ($LASTEXITCODE -ne 0) { throw "resourcecompiler failed with exit code $LASTEXITCODE" }
+
+    foreach ($output in @(
+        (Join-Path $gameLayoutDir "online_music_player_custom_hud.vxml_c"),
+        (Join-Path $gameStyleDir "online_music_player_custom_hud.vcss_c"))) {
+        Assert-FileExists -Path $output -Message "Expected compiled resource not found: $output"
+    }
+    foreach ($iconName in $iconNames) {
+        Assert-FileExists -Path (Join-Path $gameImageDir "$iconName.vtex_c") -Message "Expected compiled VTEX not found: $iconName.vtex_c"
+    }
+
+    $strippedDir = Join-Path $paths.GameAddon "panorama_stripped"
+    Remove-ChildDirectory -Path $strippedDir -Parent $paths.GameAddon
+    Copy-Item -LiteralPath (Join-Path $paths.ContentAddon "addoninfo.txt") -Destination (Join-Path $paths.GameAddon "addoninfo.txt") -Force
+    Write-Host "Compiled HUD resources: $($paths.GameAddon)"
+}
+
+function Pack-HudVpk {
+    $paths = Get-AddonPaths
+    Assert-DirectoryExists -Path $paths.GameAddon -Message "Compiled addon not found: $($paths.GameAddon). Run Compile first."
+    Assert-FileExists -Path $VpkEditCli -Message "VPKEdit CLI not found: $VpkEditCli"
+    foreach ($relativePath in @(
+        "addoninfo.txt",
+        "panorama\layout\custom_game\online_music_player_custom_hud.vxml_c",
+        "panorama\styles\custom_game\online_music_player_custom_hud.vcss_c",
+        "panorama\images\custom_game\music_player\close.vtex_c",
+        "panorama\images\custom_game\music_player\music_note.vtex_c",
+        "panorama\images\custom_game\music_player\next.vtex_c",
+        "panorama\images\custom_game\music_player\pause.vtex_c",
+        "panorama\images\custom_game\music_player\play.vtex_c",
+        "panorama\images\custom_game\music_player\previous.vtex_c")) {
+        Assert-FileExists -Path (Join-Path $paths.GameAddon $relativePath) -Message "Compiled addon is missing: $relativePath"
+    }
+
+    New-Item -ItemType Directory -Force -Path $distRoot | Out-Null
+    & $VpkEditCli --output $outVpk --type vpk --version 2 --single-file $paths.GameAddon
+    if ($LASTEXITCODE -ne 0) { throw "vpkeditcli failed with exit code $LASTEXITCODE" }
+    Assert-FileExists -Path $outVpk -Message "Expected VPK was not created: $outVpk"
+
+    $tree = (& $VpkEditCli --file-tree $outVpk | Out-String)
+    foreach ($fileName in @("addoninfo.txt", "online_music_player_custom_hud.vxml_c", "online_music_player_custom_hud.vcss_c", "music_note.vtex_c", "play.vtex_c", "pause.vtex_c", "previous.vtex_c", "next.vtex_c", "close.vtex_c")) {
+        if ($tree -notmatch [regex]::Escape($fileName)) { throw "Packed VPK is missing: $fileName" }
+    }
+    Write-Host "Packed HUD VPK: $outVpk"
+}
+
+switch ($Action) {
+    "Validate" { Test-HudSources }
+    "Compile" { Compile-HudResources }
+    "Pack" { Pack-HudVpk }
+    "Build" { Compile-HudResources; Pack-HudVpk }
+}

@@ -1,0 +1,120 @@
+<root>
+  <styles>
+    <include src="s2r://panorama/styles/custom_game/online_music_player_custom_hud.vcss_c" />
+  </styles>
+
+  <Panel class="MusicHudRoot" hittest="false">
+    <Panel id="music_dialog" class="MusicPlayerCard MusicHudHidden MusicHudIdle Volume3 Progress0" hittest="true">
+      <Panel class="AccentRail" hittest="false" />
+
+      <Panel class="MusicHeader" hittest="false">
+        <Panel class="AlbumArt" hittest="false">
+          <Panel class="AlbumArtInset" hittest="false" />
+          <Image
+            class="AlbumNoteIcon"
+            hittest="false"
+            src="s2r://panorama/images/custom_game/music_player/music_note.vtex_c"
+            texturewidth="64"
+            textureheight="64" />
+        </Panel>
+
+        <Panel class="TrackDetails" hittest="false">
+          <Label class="TrackKicker" text="NOW PLAYING" hittest="false" />
+          <Label class="TrackTitle" text="{s:track-title}" hittest="false" />
+          <Label class="ArtistName" text="{s:artist-name}" hittest="false" />
+          <Label class="PlayerStatus" text="{s:status}" hittest="false" />
+        </Panel>
+
+        <Panel class="Spectrum" hittest="false">
+          <Panel class="SpectrumBars" hittest="false">
+            <Panel class="SpectrumBar SpectrumBar1" hittest="false" />
+            <Panel class="SpectrumBar SpectrumBar2" hittest="false" />
+            <Panel class="SpectrumBar SpectrumBar3" hittest="false" />
+            <Panel class="SpectrumBar SpectrumBar4" hittest="false" />
+            <Panel class="SpectrumBar SpectrumBar5" hittest="false" />
+            <Panel class="SpectrumBar SpectrumBar6" hittest="false" />
+            <Panel class="SpectrumBar SpectrumBar7" hittest="false" />
+            <Panel class="SpectrumBar SpectrumBar8" hittest="false" />
+          </Panel>
+        </Panel>
+
+        <Button id="music_player_close" class="CloseButton">
+          <Image
+            class="CloseIcon"
+            hittest="false"
+            src="s2r://panorama/images/custom_game/music_player/close.vtex_c"
+            texturewidth="64"
+            textureheight="64" />
+        </Button>
+      </Panel>
+
+      <Panel class="TimeInfo" hittest="false">
+        <Label class="CurrentTime" text="{s:current-time}" hittest="false" />
+        <Label class="StreamBadge" text="ONLINE AUDIO" hittest="false" />
+        <Label class="Duration" text="{s:duration}" hittest="false" />
+      </Panel>
+
+      <Panel class="ProgressTrack" hittest="false">
+        <Panel class="ProgressFill" hittest="false" />
+        <Panel class="ProgressHandle" hittest="false" />
+      </Panel>
+
+      <Panel class="ControlDeck" hittest="true">
+        <Button id="music_player_volume_down" class="DeckButton VolumeButton">
+          <Label text="−" hittest="false" />
+        </Button>
+        <Button id="music_player_prev" class="DeckButton SkipButton">
+          <Image
+            class="ControlIcon"
+            hittest="false"
+            src="s2r://panorama/images/custom_game/music_player/previous.vtex_c"
+            texturewidth="64"
+            textureheight="64" />
+        </Button>
+        <Button id="music_player_play_pause" class="DeckButton PlayPauseButton">
+          <Image
+            class="ControlIcon PlayIcon"
+            hittest="false"
+            src="s2r://panorama/images/custom_game/music_player/play.vtex_c"
+            texturewidth="64"
+            textureheight="64" />
+          <Image
+            class="ControlIcon PauseIcon"
+            hittest="false"
+            src="s2r://panorama/images/custom_game/music_player/pause.vtex_c"
+            texturewidth="64"
+            textureheight="64" />
+          <Label class="WaitLabel" text="{s:play-action}" hittest="false" />
+        </Button>
+        <Button id="music_player_next" class="DeckButton SkipButton">
+          <Image
+            class="ControlIcon"
+            hittest="false"
+            src="s2r://panorama/images/custom_game/music_player/next.vtex_c"
+            texturewidth="64"
+            textureheight="64" />
+        </Button>
+        <Button id="music_player_volume_up" class="DeckButton VolumeButton">
+          <Label text="+" hittest="false" />
+        </Button>
+      </Panel>
+
+      <Panel class="FooterRow" hittest="false">
+        <Panel class="SourceReadout" hittest="false">
+          <Label class="SourceKicker" text="SOURCE" hittest="false" />
+          <Label class="SourceName" text="{s:source-name}" hittest="false" />
+        </Panel>
+        <Panel class="VolumeReadout" hittest="false">
+          <Label class="VolumeText" text="{s:volume-text}" hittest="false" />
+          <Panel class="VolumeDots" hittest="false">
+            <Panel class="VolumeDot VolumeDot1" hittest="false" />
+            <Panel class="VolumeDot VolumeDot2" hittest="false" />
+            <Panel class="VolumeDot VolumeDot3" hittest="false" />
+            <Panel class="VolumeDot VolumeDot4" hittest="false" />
+            <Panel class="VolumeDot VolumeDot5" hittest="false" />
+          </Panel>
+        </Panel>
+      </Panel>
+    </Panel>
+  </Panel>
+</root>

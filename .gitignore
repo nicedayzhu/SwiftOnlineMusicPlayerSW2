@@ -1,0 +1,9 @@
+build/
+obj/
+dist/
+.codebase-memory/
+.vs/
+__pycache__/
+*.pyc
+*.user
+*.suo
