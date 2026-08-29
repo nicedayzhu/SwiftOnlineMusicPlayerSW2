@@ -28,7 +28,7 @@
 }
 
 .MusicPlayerPresenter.MusicHudSearchAvailable { height: 189px; }
-.MusicPlayerPresenter.MusicHudSearchOpen { height: 415px; }
+.MusicPlayerPresenter.MusicHudSearchOpen { height: 445px; }
 
 /* .card */
 .PlayerSurface
@@ -108,21 +108,19 @@
 
 .MusicHudPlaying .SpectrumBar
 {
-    animation-name: 'spectrum-a';
-    animation-duration: 1s;
     animation-timing-function: ease-in-out;
     animation-iteration-count: infinite;
 }
 
-.MusicHudPlaying .SpectrumBar1 { animation-delay: 0.20s; }
-.MusicHudPlaying .SpectrumBar2 { animation-delay: 0.50s; }
-.MusicHudPlaying .SpectrumBar3 { animation-delay: 0.60s; }
-.MusicHudPlaying .SpectrumBar4 { animation-delay: 0.00s; }
-.MusicHudPlaying .SpectrumBar5 { animation-delay: 0.40s; }
+.MusicHudPlaying .SpectrumBar1 { animation-name: spectrum-1; animation-duration: 0.68s; }
+.MusicHudPlaying .SpectrumBar2 { animation-name: spectrum-2; animation-duration: 0.84s; }
+.MusicHudPlaying .SpectrumBar3 { animation-name: spectrum-3; animation-duration: 0.73s; }
+.MusicHudPlaying .SpectrumBar4 { animation-name: spectrum-4; animation-duration: 0.91s; }
+.MusicHudPlaying .SpectrumBar5 { animation-name: spectrum-5; animation-duration: 0.77s; }
 
 .MusicHudLoading .SpectrumBar
 {
-    animation-name: 'spectrum-loading';
+    animation-name: spectrum-loading;
     animation-duration: 0.75s;
     animation-timing-function: ease-in-out;
     animation-iteration-count: infinite;
@@ -453,7 +451,7 @@
 .MusicHudLive.MusicHudPlaying .ProgressFill
 {
     width: 42%;
-    animation-name: 'music-live-progress';
+    animation-name: music-live-progress;
     animation-duration: 2.4s;
     animation-timing-function: ease-in-out;
     animation-iteration-count: infinite;
@@ -543,7 +541,7 @@
 {
     visibility: collapse;
     width: 250px;
-    height: 220px;
+    height: 250px;
     margin-top: 6px;
     padding: 9px 8px 7px 8px;
     flow-children: down;
@@ -567,23 +565,23 @@
 .SearchDrawerHeader
 {
     width: 100%;
-    height: 28px;
+    height: 32px;
     margin-bottom: 5px;
     flow-children: right;
 }
 .SearchDrawerTitle
 {
     width: fill-parent-flow(1);
-    height: 28px;
+    height: 32px;
     flow-children: down;
     overflow: clip;
 }
 .SearchKicker
 {
     width: 100%;
-    height: 12px;
+    height: 13px;
     font-family: Stratum2, 'Arial Unicode MS';
-    font-size: 9px;
+    font-size: 10px;
     font-weight: bold;
     letter-spacing: 0.7px;
     color: #1db954;
@@ -592,9 +590,9 @@
 .SearchQuery
 {
     width: 100%;
-    height: 15px;
+    height: 18px;
     font-family: Stratum2, 'Arial Unicode MS';
-    font-size: 11px;
+    font-size: 12px;
     font-weight: bold;
     color: #ffffff;
     text-overflow: ellipsis;
@@ -604,7 +602,7 @@
 .SearchPager
 {
     width: 80px;
-    height: 22px;
+    height: 24px;
     horizontal-align: right;
     flow-children: right;
 }
@@ -642,10 +640,10 @@
 .SearchPageLabel
 {
     width: fill-parent-flow(1);
-    height: 18px;
+    height: 20px;
     padding-top: 3px;
     font-family: Stratum2, 'Arial Unicode MS';
-    font-size: 8px;
+    font-size: 9px;
     color: #ffffff88;
     text-align: center;
 }
@@ -653,7 +651,7 @@
 .SearchResultList
 {
     width: 100%;
-    height: 160px;
+    height: 185px;
     flow-children: down;
 }
 .SearchResult
@@ -675,7 +673,7 @@
 .SearchItems5 .SearchResult1, .SearchItems5 .SearchResult2, .SearchItems5 .SearchResult3, .SearchItems5 .SearchResult4, .SearchItems5 .SearchResult5
 {
     visibility: visible;
-    height: 29px;
+    height: 34px;
     margin-bottom: 3px;
 }
 .SearchResult:hover
@@ -702,11 +700,11 @@
 }
 .SearchResultIndex
 {
-    width: 26px;
-    height: 27px;
-    padding-top: 7px;
+    width: 28px;
+    height: 32px;
+    padding-top: 8px;
     font-family: Stratum2 Condensed, 'Arial Unicode MS';
-    font-size: 9px;
+    font-size: 10px;
     font-weight: bold;
     color: #1db954;
     text-align: center;
@@ -714,7 +712,7 @@
 .SearchResultCopy
 {
     width: fill-parent-flow(1);
-    height: 28px;
+    height: 33px;
     padding: 2px 4px 0px 2px;
     flow-children: down;
     overflow: clip;
@@ -722,9 +720,9 @@
 .SearchResultTitle
 {
     width: 100%;
-    height: 14px;
+    height: 16px;
     font-family: Stratum2, 'Arial Unicode MS';
-    font-size: 10px;
+    font-size: 12px;
     font-weight: bold;
     color: #ffffff;
     text-overflow: ellipsis;
@@ -733,18 +731,18 @@
 .SearchResultMeta
 {
     width: 100%;
-    height: 11px;
+    height: 13px;
     font-family: Stratum2, 'Arial Unicode MS';
-    font-size: 8px;
-    color: #ffffff88;
+    font-size: 10px;
+    color: #ffffffaa;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 .SearchResultPlay
 {
-    width: 15px;
-    height: 15px;
-    margin: 6px 6px 0px 2px;
+    width: 17px;
+    height: 17px;
+    margin: 8px 6px 0px 2px;
     wash-color: #ffffff;
     opacity: 0.76;
 }
@@ -765,7 +763,7 @@
     visibility: collapse;
     width: 100%;
     height: 0px;
-    padding-top: 53px;
+    padding-top: 65px;
     flow-children: down;
     background-color: #211e1e;
     border-radius: 5px;
@@ -773,14 +771,14 @@
 .SearchItems0 .SearchEmpty
 {
     visibility: visible;
-    height: 160px;
+    height: 185px;
 }
 .SearchEmptyTitle
 {
     width: 100%;
     height: 18px;
     font-family: Stratum2, 'Arial Unicode MS';
-    font-size: 11px;
+    font-size: 12px;
     font-weight: bold;
     color: #ffffffcc;
     text-align: center;
@@ -790,16 +788,16 @@
     width: 100%;
     height: 15px;
     font-family: Stratum2, 'Arial Unicode MS';
-    font-size: 8px;
+    font-size: 10px;
     color: #ffffff66;
     text-align: center;
 }
 .SearchDrawerHint
 {
     width: 100%;
-    height: 10px;
+    height: 12px;
     font-family: Stratum2 Condensed, 'Arial Unicode MS';
-    font-size: 7px;
+    font-size: 8px;
     letter-spacing: 0.25px;
     color: #ffffff55;
     text-align: center;
@@ -807,12 +805,44 @@
     white-space: nowrap;
 }
 
-@keyframes 'spectrum-a'
+@keyframes 'spectrum-1'
 {
     0% { transform: scale3d(1, 0.10, 1); }
-    33% { transform: scale3d(1, 0.60, 1); }
-    66% { transform: scale3d(1, 0.90, 1); }
+    30% { transform: scale3d(1, 0.75, 1); }
+    60% { transform: scale3d(1, 0.35, 1); }
     100% { transform: scale3d(1, 0.10, 1); }
+}
+
+@keyframes 'spectrum-2'
+{
+    0% { transform: scale3d(1, 0.55, 1); }
+    35% { transform: scale3d(1, 0.20, 1); }
+    70% { transform: scale3d(1, 0.95, 1); }
+    100% { transform: scale3d(1, 0.55, 1); }
+}
+
+@keyframes 'spectrum-3'
+{
+    0% { transform: scale3d(1, 0.90, 1); }
+    38% { transform: scale3d(1, 0.40, 1); }
+    72% { transform: scale3d(1, 0.75, 1); }
+    100% { transform: scale3d(1, 0.90, 1); }
+}
+
+@keyframes 'spectrum-4'
+{
+    0% { transform: scale3d(1, 0.35, 1); }
+    32% { transform: scale3d(1, 0.95, 1); }
+    68% { transform: scale3d(1, 0.15, 1); }
+    100% { transform: scale3d(1, 0.35, 1); }
+}
+
+@keyframes 'spectrum-5'
+{
+    0% { transform: scale3d(1, 0.70, 1); }
+    34% { transform: scale3d(1, 0.25, 1); }
+    66% { transform: scale3d(1, 0.95, 1); }
+    100% { transform: scale3d(1, 0.70, 1); }
 }
 
 @keyframes 'spectrum-loading'

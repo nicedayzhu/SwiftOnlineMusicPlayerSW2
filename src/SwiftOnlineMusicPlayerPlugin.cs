@@ -32,6 +32,12 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
     private const int ProgressStepCount = 20;
     private const int VolumeStepCount = 5;
     private const int SearchRowsPerPage = 5;
+    private static readonly string[] TrackVariantMarkers =
+    [
+        "live", "remix", "demo", "cover", "伴奏", "翻唱", "柔情版", "3d", "环绕",
+        "montagem", "童声", "儿歌", "女声", "男声", "男生", "女生", "吉他版", "钢琴版",
+        "现场", "原唱", "dj", "mix", "speed", "slowed", "低音", "加速", "变调"
+    ];
 
     private readonly Dictionary<int, PlayerSession> _sessions = [];
     private readonly HashSet<int> _openSlots = [];
@@ -425,9 +431,27 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
             return;
         }
 
-        session.State = PlaybackState.Browsing;
         session.Error = string.Empty;
-        player?.SendChat($"[Music] Found {results.Count} result(s). Choose a track in the HUD or use !music_pick <number>.");
+        var searchAction = _config.AutoPlayFirstSearchResult
+            ? "Playing #1 automatically; use the HUD or !music_pick <number> to choose another track."
+            : "Choose a track in the HUD or use !music_pick <number>.";
+        player?.SendChat($"[Music] Found {results.Count} result(s). {searchAction}");
+        for (var index = 0; index < results.Count; index++)
+        {
+            var result = results[index];
+            var variant = LooksLikeVariant(result.Title, result.Artist) ? " · variant" : string.Empty;
+            player?.SendChat(
+                $"[Music] {index + 1}. {result.Title} — {result.Artist} [{result.Source}]{variant}");
+        }
+
+        if (_config.AutoPlayFirstSearchResult)
+        {
+            BeginLoadSearchTrack(session, 0);
+        }
+        else
+        {
+            session.State = PlaybackState.Browsing;
+        }
 
         RenderHudIfOpen(session, forceClasses: true);
     }
@@ -511,10 +535,11 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
             _sourceCache.Clear();
             UpdateOpenHuds();
             Logger.LogInformation(
-                "[SwiftOnlineMusicPlayer] Config loaded from {Path}: tracks={TrackCount}, autoAdvance={AutoAdvance}, defaultVolume={DefaultVolume:F2}, musicSquareSearch={SearchEnabled}.",
+                "[SwiftOnlineMusicPlayer] Config loaded from {Path}: tracks={TrackCount}, autoAdvance={AutoAdvance}, autoPlayFirstSearchResult={AutoPlayFirstSearchResult}, defaultVolume={DefaultVolume:F2}, musicSquareSearch={SearchEnabled}.",
                 Core.Configuration.GetConfigPath(RuntimeConfigFileName),
                 normalized.Tracks.Count,
                 normalized.AutoAdvance,
+                normalized.AutoPlayFirstSearchResult,
                 normalized.DefaultVolume,
                 normalized.MusicSquareSearch.Enabled);
         }
@@ -1301,6 +1326,13 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
             ? fallback
             : new string(value.Where(character => !char.IsControl(character)).ToArray()).Trim();
         return text.Length <= 96 ? text : text[..96];
+    }
+
+    private static bool LooksLikeVariant(string title, string artist)
+    {
+        var text = $"{title} {artist}".ToLowerInvariant();
+        return TrackVariantMarkers.Any(marker =>
+            text.Contains(marker, StringComparison.Ordinal));
     }
 
     private static string SanitizeSearchQuery(string? value)

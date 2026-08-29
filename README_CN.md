@@ -48,6 +48,7 @@ Audio 插件本体必须单独下载并作为 SwiftlyS2 插件安装；本项目
   "MusicPlayer": {
     "DefaultVolume": 0.65,
     "AutoAdvance": true,
+    "AutoPlayFirstSearchResult": true,
     "MusicSquareSearch": {
       "Enabled": true,
       "SearchEndpoint": "https://api.qijieya.cn/meting/",
@@ -77,6 +78,7 @@ Audio 插件本体必须单独下载并作为 SwiftlyS2 插件安装；本项目
 - `Url` 必须是解码器可以直接读取的 HTTP/HTTPS 媒体地址。
 - YouTube、Spotify、网易云等网页链接不是音频流地址，不能直接填入；如需这类来源，应在服务器外部合法解析/转码成受控的直链或自建流媒体端点。
 - `DurationSeconds` 用于 HUD 计时和自动下一首。直播流或未知时长填 `0`。
+- `AutoPlayFirstSearchResult` 默认是 `true`：搜索成功后保留候选菜单并自动加载第 1 条；设为 `false` 后只展示结果，等待玩家点击或输入 `!music_pick`。
 - `MusicSquareSearch` 是可选的服务器侧搜索适配器。默认仅启用 MusicSquare 当前使用的网易云 qijieya Meting 路径；管理员可关闭或换成协议兼容的自建端点。
 - `AllowedAudioHostSuffixes` 应保持尽量小。留空会接受任意公网 HTTP(S) 音频主机，不建议在生产服这样配置。
 - 只使用你有权公开播放的音频，并遵守所在地区的版权、表演权和平台条款。
@@ -86,7 +88,7 @@ Audio 插件本体必须单独下载并作为 SwiftlyS2 插件安装；本项目
 本项目没有嵌入或抓取 MusicSquare 网页，也没有复制其播放器实现。采用的是它公开源码中可观察到的“搜索元数据 → 获取直接音频 URL → 交给播放器”适配思路，并独立实现了 C# 服务端客户端。
 
 - 当前以酷我搜索为主：服务端对候选进行匹配、URL 公网校验和音频主机白名单校验；酷我无可播放结果时再回退到网易云 qijieya Meting 路径。
-- 搜索结果只在聊天区发送数量摘要，完整曲名、歌手、来源与时长改由 HUD 曲目抽屉承载，减少战斗中的聊天刷屏。
+- 搜索结果会同时写入聊天区和 HUD 曲目抽屉：聊天保留编号、曲名、歌手和来源，HUD 提供可点击选择，便于玩家在不同交互习惯下使用。
 - 暂不接入 QQ：需要第二次详情请求，付费/VIP 结果不保证可播放。
 - 暂不接入 JOOX：MusicSquare 前端包含第三方 token，本项目不会复制或分发该凭据。
 - MusicSquare 的 Apache-2.0 许可证只覆盖它的源码，不授予任何歌曲、平台目录或公开演播权。其在线演示也明确声明音乐版权归平台和原作者所有。
@@ -99,7 +101,7 @@ Audio 插件本体必须单独下载并作为 SwiftlyS2 插件安装；本项目
 - `!music_close`：关闭播放器 UI，不停止后台音乐。
 - `!music_stop`：停止并重置自己的音乐频道。
 - `!music_status`：显示 Audio、HUD、曲库和个人会话状态。
-- `!music_search <歌名或歌手>`：搜索在线候选并展开 HUD 曲目菜单，点击整行即可播放。
+- `!music_search <歌名或歌手>`：搜索在线候选并展开 HUD 曲目菜单；默认自动播放第 1 条，也可点击任意结果切换。
 - `!music_pick <1-N>`：播放最近一次搜索的第 N 条结果。
 - `!music_library`：退出搜索结果集并返回静态曲库。
 
@@ -155,6 +157,8 @@ build/publish/SwiftOnlineMusicPlayerSW2/
 ```text
 dist/swift_online_music_player.vpk
 ```
+
+仓库中的图标源文件直接使用 `hud/icons/*.png`（128×128、8 位 RGBA）。构建脚本会生成 VTEX 描述并交给 ResourceCompiler 编译，不再需要浏览器或 Python 把 SVG 截图成 PNG；Panorama 布局中的逻辑 `.vtex` 引用保持不变。
 
 VPK 的分发/挂载方式取决于服务器现有资源方案。服务器插件本身不能让未安装资源的客户端显示 HUD。
 

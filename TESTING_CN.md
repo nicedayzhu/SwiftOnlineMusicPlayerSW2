@@ -20,7 +20,7 @@
 预期结果：
 
 ```text
-audio=ready, hud=ready, search=netease-ready
+audio=ready, hud=ready, search=kuwo-primary+netease-fallback
 ```
 
 首次正常启动后应生成：
@@ -42,7 +42,7 @@ Audio 测试阶段保持 `UseFFMpeg: false`，先使用随插件提供的 `pcmde
 6. 再次输入 `!music`；UI 应恢复且显示当前状态。
 7. 输入 `!music_stop`；音乐应停止，进度归零。
 
-同时观察：按钮 Hover 是否正常、进度是否每秒推进、音量文本是否为 0%–100%、关闭后鼠标是否立即恢复。
+同时观察：按钮 Hover 是否正常、进度是否每秒推进、播放状态下左上角 5 根绿色音浪是否以不同节奏持续波动、暂停后音浪是否停止、音量文本是否为 0%–100%、关闭后鼠标是否立即恢复。
 
 ## 三、在线搜索播放
 
@@ -57,11 +57,14 @@ Audio 测试阶段保持 `UseFFMpeg: false`，先使用随插件提供的 `pcmde
 预期行为：
 
 1. HUD 状态先变成 `SEARCHING / KUWO PRIMARY · NETEASE FALLBACK`，并展开搜索抽屉。
-2. 搜索完成后 HUD 进入 `RESULTS READY`，显示可点击的候选曲目行，不应自动播放第 1 条。
-3. 点击任一曲目行应立即收起抽屉并加载该曲；超过 5 条时测试抽屉翻页按钮。
-4. `!music_pick 2` 仍可播放第 2 条；主播放器左右按钮在本次候选中切换。
-5. `!music_library` 返回 SoundHelix 静态曲库并隐藏搜索入口。
-6. 5 秒内连续搜索应提示冷却，而不是重复请求接口。
+2. 搜索完成后聊天区应逐条显示编号、曲名、歌手和来源；HUD 显示字体清晰的可点击候选曲目行。
+3. 默认 `AutoPlayFirstSearchResult: true` 时应立即加载并播放第 1 条，同时保留搜索抽屉供玩家改选。
+4. 点击任一曲目行应立即收起抽屉并加载该曲；超过 5 条时测试抽屉翻页按钮。
+5. `!music_pick 2` 仍可播放第 2 条；主播放器左右按钮在本次候选中切换。
+6. `!music_library` 返回 SoundHelix 静态曲库并隐藏搜索入口。
+7. 5 秒内连续搜索应提示冷却，而不是重复请求接口。
+
+随后将配置改为 `"AutoPlayFirstSearchResult": false` 并等待配置重载，再搜索一次。此时 HUD 应进入 `RESULTS READY`，保留列表且不自动播放，直到点击结果或使用 `!music_pick`。
 
 搜索结果时长未知，所以 HUD 显示 `LIVE` 属于当前设计，不代表一定是直播流。
 
@@ -141,11 +144,11 @@ vcss
 - `server.dll` SHA-256：`9E5749D77DCB68883477FEAE751A3F28068D119EC145EDCB0E4D48D15B538D36`
 - 四条 Custom HUD 原生签名均唯一命中。
 - Audio v1.0.6 官方 ZIP SHA-256：`CF719B1AE4784202D7673BF2D55B172A0F7A0E8502D84C7BE968AC14D157F4FF`
-- 上次实机安装的服务器/客户端 VPK SHA-256：`A0836C012BBD119908A07D39304370AC3FF36612B948F154E4037E609B6DBC64`。
-- 本次新生成、尚未安装的项目 VPK SHA-256：`BCEA949DCA4BB375F2B6C3AB461F629ABCF669C924E0CF5FFFC7E11ECABF8975`。
+- 当前实机安装的服务器/客户端/项目音浪修正版 VPK SHA-256：`ED743ECB0AA3E600B24260EFA9EE7FD6BC14E5CA42E7F583E9EB657EFE95113E`。
+- 本次实机安装的插件 DLL SHA-256：`BBFAB3289AD4C582A11108301BBA35BA8A41B0D6119F8B289F2534BAF5AD980C`。
 
 原始 `gameinfo.gi` 备份位于：
 
 ```text
-F:\cs2dev\SkinTools\res\SwiftOnlineMusicPlayerSW2\build\install-backups\20260829-161344
+F:\cs2dev\SkinTools\res\SwiftOnlineMusicPlayerSW2\build\install-backups\20260829-225908
 ```

@@ -4,6 +4,7 @@ public sealed class MusicPlayerConfig
 {
     public float DefaultVolume { get; set; } = 0.65f;
     public bool AutoAdvance { get; set; } = true;
+    public bool AutoPlayFirstSearchResult { get; set; } = true;
     public MusicSquareSearchConfig MusicSquareSearch { get; set; } = new();
     public List<MusicTrackConfig> Tracks { get; set; } =
     [
@@ -60,6 +61,7 @@ public sealed class MusicPlayerConfig
         {
             DefaultVolume = Math.Clamp(source.DefaultVolume, 0f, 1f),
             AutoAdvance = source.AutoAdvance,
+            AutoPlayFirstSearchResult = source.AutoPlayFirstSearchResult,
             MusicSquareSearch = MusicSquareSearchConfig.Normalize(source.MusicSquareSearch),
             Tracks = tracks
         };
