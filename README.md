@@ -7,18 +7,20 @@ See [README_CN.md](README_CN.md) for the complete architecture, configuration, b
 Quick commands:
 
 - `!music` — open the player.
-- `!music_search <song or artist>` — search Netease through the configured MusicSquare-compatible endpoint and play result 1.
+- `!music_search <song or artist>` — search Kuwo with Netease fallback and open the clickable in-HUD result drawer.
 - `!music_pick <1-N>` — play a result from the player's latest search.
 - `!music_library` — return to the administrator-configured static library.
 - `!music_close` — close the UI while playback continues.
 - `!music_stop` — stop/reset the player's private channel.
 - `!music_status` — show dependency and session status.
+- The heart button toggles a per-player favorite marker for the current connection; it is intentionally not persisted as a server library edit.
 
 Important constraints:
 
 - Install the SwiftlyS2 Audio plugin separately; this project references API package `2.0.0` only.
 - Track URLs must be direct HTTP/HTTPS media or stream URLs recognized by the decoder.
-- Online search is server-side and optional. The default adapter independently implements the Netease/qijieya request shape currently used by MusicSquare; it does not embed or scrape the MusicSquare site.
+- Online search is server-side and optional. The default adapter queries Kuwo first and independently implements the Netease/qijieya fallback request shape currently used by MusicSquare; it does not embed or scrape the MusicSquare site.
+- The result drawer exposes five clickable rows per page and supports the configured maximum of ten results without using Panorama JavaScript.
 - Third-party catalog APIs have no uptime guarantee. The Apache-2.0 license for MusicSquare source does not grant music, platform, or public-performance rights.
 - Both client and server must mount the generated HUD VPK.
 - The native Custom HUD bridge is locked to the documented Windows `server.dll` snapshot and must be reverified after CS2 updates.

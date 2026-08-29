@@ -17,9 +17,10 @@
 
 - `!music` 打开播放器，`!music_close` 只关闭 UI，音乐继续播放。
 - 在线 URL 加载、播放、暂停、继续、上一首、下一首。
-- 基于 MusicSquare 当前网易云适配方式的服务器侧搜索：`!music_search <歌名/歌手>` 自动播放第一条，HUD 左右键可切换本次候选。
+- 服务器侧在线搜索：`!music_search <歌名/歌手>` 以酷我为主、网易云为回退，并在 HUD 内展开可点击的候选曲目菜单；每页 5 条，最多支持配置允许的 10 条结果。
 - `!music_pick <序号>` 精确选择搜索结果，`!music_library` 返回管理员静态曲库；结果与冷却时间均逐玩家隔离。
 - 逐玩家 0%–100% 六档音量。
+- 爱心按钮可标记当前连接期间的逐玩家收藏状态；它不会伪装成已持久化的服务器曲库修改。
 - 曲名、歌手、当前时间、总时长、加载/暂停/错误状态。
 - 20 段进度显示；`DurationSeconds = 0` 时显示 LIVE 动画。
 - 配置文件热重载；URL 只允许 HTTP/HTTPS，最多 64 首。
@@ -84,9 +85,9 @@ Audio 插件本体必须单独下载并作为 SwiftlyS2 插件安装；本项目
 
 本项目没有嵌入或抓取 MusicSquare 网页，也没有复制其播放器实现。采用的是它公开源码中可观察到的“搜索元数据 → 获取直接音频 URL → 交给播放器”适配思路，并独立实现了 C# 服务端客户端。
 
-- 当前只接入网易云搜索，因为该路径的搜索响应直接包含播放 URL，最适合 SwiftlyS2 Audio。
+- 当前以酷我搜索为主：服务端对候选进行匹配、URL 公网校验和音频主机白名单校验；酷我无可播放结果时再回退到网易云 qijieya Meting 路径。
+- 搜索结果只在聊天区发送数量摘要，完整曲名、歌手、来源与时长改由 HUD 曲目抽屉承载，减少战斗中的聊天刷屏。
 - 暂不接入 QQ：需要第二次详情请求，付费/VIP 结果不保证可播放。
-- 暂不接入酷我：详情接口依赖搜索序号，稳定性和结果绑定较弱。
 - 暂不接入 JOOX：MusicSquare 前端包含第三方 token，本项目不会复制或分发该凭据。
 - MusicSquare 的 Apache-2.0 许可证只覆盖它的源码，不授予任何歌曲、平台目录或公开演播权。其在线演示也明确声明音乐版权归平台和原作者所有。
 
@@ -98,7 +99,7 @@ Audio 插件本体必须单独下载并作为 SwiftlyS2 插件安装；本项目
 - `!music_close`：关闭播放器 UI，不停止后台音乐。
 - `!music_stop`：停止并重置自己的音乐频道。
 - `!music_status`：显示 Audio、HUD、曲库和个人会话状态。
-- `!music_search <歌名或歌手>`：搜索网易云候选并播放第一条。
+- `!music_search <歌名或歌手>`：搜索在线候选并展开 HUD 曲目菜单，点击整行即可播放。
 - `!music_pick <1-N>`：播放最近一次搜索的第 N 条结果。
 - `!music_library`：退出搜索结果集并返回静态曲库。
 
@@ -175,6 +176,6 @@ unique-pattern validation: 2026-08-29
 - [Audio API: IAudioApi](https://github.com/SwiftlyS2-Plugins/Audio/blob/main/AudioApi/IAudioApi.cs)
 - [Audio API: IAudioChannelController](https://github.com/SwiftlyS2-Plugins/Audio/blob/main/AudioApi/IAudioChannelController.cs)
 - [SwiftlyS2 Sound Events](https://swiftlys2.net/docs/development/soundevents/)
-- [Uiverse music player reference](https://uiverse.io/Vosoone/orange-dog-20)
+- [Uiverse music player reference](https://uiverse.io/bociKond/serious-robin-34)
 - [MusicSquare source](https://github.com/CharlesPikachu/musicsquare)
 - [MusicSquare live demo](https://charlespikachu.github.io/musicsquare/)

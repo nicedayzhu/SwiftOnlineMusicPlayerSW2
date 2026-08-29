@@ -4,79 +4,77 @@
     height: 100%;
 }
 
-.MusicPlayerCard
+/* Presenter owns expansion only. The player surface below remains the 250 x 155 reference card. */
+.MusicPlayerPresenter
 {
-    width: 316px;
-    height: 160px;
+    width: 250px;
+    height: 155px;
     horizontal-align: right;
     vertical-align: center;
-    margin-right: 44px;
-    padding: 12px 14px 11px 14px;
+    margin-right: 40px;
     flow-children: down;
-    background-color: rgba(20, 16, 16, 0.985);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 12px;
-    box-shadow: rgba(0, 0, 0, 0.86) 0px 2px 30px 2px;
-    color: #ffffff;
     overflow: clip;
     opacity: 1;
-    transition-property: opacity, transform, border, box-shadow;
-    transition-duration: 0.18s;
+    transition-property: height, opacity, transform;
+    transition-duration: 0.16s;
     transition-timing-function: ease-out;
 }
 
-.MusicPlayerCard.MusicHudHidden
+.MusicPlayerPresenter.MusicHudHidden
 {
     visibility: collapse;
     opacity: 0;
-    transform: translateX(18px);
+    transform: translateX(14px);
 }
 
-.MusicPlayerCard.MusicHudPlaying
+.MusicPlayerPresenter.MusicHudSearchAvailable { height: 189px; }
+.MusicPlayerPresenter.MusicHudSearchOpen { height: 415px; }
+
+/* .card */
+.PlayerSurface
 {
-    border-color: rgba(29, 185, 84, 0.35);
-    box-shadow: rgba(29, 185, 84, 0.22) 0px 2px 30px 2px;
+    width: 250px;
+    height: 155px;
+    padding: 12px 12px 11px 12px;
+    flow-children: down;
+    overflow: clip;
+    background-color: #191414;
+    border-radius: 10px;
+    box-shadow: #0000008c 0px 10px 24px 0px;
+    color: #ffffff;
 }
 
-.MusicPlayerCard.MusicHudPaused { border-color: rgba(228, 174, 57, 0.28); }
-.MusicPlayerCard.MusicHudError { border-color: rgba(219, 68, 55, 0.30); }
-
+/* .top */
 .MusicHeader
 {
     width: 100%;
-    height: 54px;
+    height: 42px;
     flow-children: right;
 }
 
+/* .pfp */
 .AlbumArt
 {
-    width: 46px;
-    height: 46px;
-    margin-top: 2px;
-    margin-right: 12px;
+    width: 40px;
+    height: 40px;
+    margin-right: 10px;
     overflow: clip;
-    border-radius: 8px;
-    background-color: gradient(linear, 0% 0%, 100% 100%,
-        from(#d2d2d2),
-        to(#bfbfbf));
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    box-shadow: rgba(0, 0, 0, 0.52) 0px 2px 8px 0px;
+    background-color: #ffffff;
+    border-radius: 5px;
 }
 
 .AlbumNoteIcon
 {
-    width: 22px;
-    height: 22px;
-    horizontal-align: center;
-    vertical-align: center;
-    wash-color: #201d1d;
-    opacity: 0.28;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
 }
 
+/* .playing */
 .Spectrum
 {
     width: 30px;
-    height: 22px;
+    height: 20px;
     horizontal-align: center;
     vertical-align: center;
 }
@@ -90,28 +88,28 @@
     flow-children: right;
 }
 
+/* .greenline */
 .SpectrumBar
 {
-    width: 3px;
+    width: 2px;
     height: 20px;
-    margin-right: 2px;
+    margin-right: 3px;
     vertical-align: bottom;
     transform-origin: 50% 100%;
     border-radius: 1px;
     background-color: #1db954;
-    opacity: 0.92;
 }
 
-.SpectrumBar1 { transform: scale3d(1, 0.22, 1); }
-.SpectrumBar2 { transform: scale3d(1, 0.58, 1); }
-.SpectrumBar3 { transform: scale3d(1, 0.86, 1); }
-.SpectrumBar4 { transform: scale3d(1, 0.48, 1); }
+.SpectrumBar1 { transform: scale3d(1, 0.10, 1); }
+.SpectrumBar2 { transform: scale3d(1, 0.60, 1); }
+.SpectrumBar3 { transform: scale3d(1, 0.90, 1); }
+.SpectrumBar4 { transform: scale3d(1, 0.35, 1); }
 .SpectrumBar5 { transform: scale3d(1, 0.70, 1); }
 
 .MusicHudPlaying .SpectrumBar
 {
     animation-name: 'spectrum-a';
-    animation-duration: 1.0s;
+    animation-duration: 1s;
     animation-timing-function: ease-in-out;
     animation-iteration-count: infinite;
 }
@@ -130,146 +128,302 @@
     animation-iteration-count: infinite;
 }
 
+/* .texts */
 .TrackDetails
 {
     width: fill-parent-flow(1);
-    height: 54px;
+    height: 40px;
     flow-children: down;
     overflow: clip;
 }
 
+/* .title-1 */
 .TrackTitle
 {
     width: 100%;
     height: 24px;
-    margin-top: 2px;
     font-family: Stratum2, 'Arial Unicode MS';
-    font-size: 21px;
+    font-size: 20px;
     font-weight: bold;
     color: #ffffff;
     text-overflow: ellipsis;
     white-space: nowrap;
-    text-shadow: 1px 1px 3px 1 rgba(0, 0, 0, 0.5);
 }
 
+/* .title-2 */
 .ArtistName
 {
     width: 100%;
-    height: 15px;
+    height: 16px;
     font-family: Stratum2, 'Arial Unicode MS';
     font-size: 12px;
-    color: #b3b3b3;
+    color: #ffffffcc;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
-
-.PlayerStatus
-{
-    width: 100%;
-    height: 12px;
-    font-family: Stratum2 Condensed, 'Arial Unicode MS';
-    font-size: 9px;
-    font-weight: bold;
-    letter-spacing: 0.7px;
-    color: #1db954;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.MusicHudPaused .PlayerStatus { color: #e4ae39; }
-.MusicHudLoading .PlayerStatus { color: #bda4ff; }
-.MusicHudError .PlayerStatus { color: #f0645b; }
-.MusicHudIdle .PlayerStatus { color: #8a8a8a; }
 
 .CloseButton
 {
-    width: 22px;
-    height: 22px;
-    margin-top: 1px;
-    margin-left: 6px;
-    background-color: rgba(255, 255, 255, 0.0);
-    border: 1px solid rgba(255, 255, 255, 0.10);
-    border-radius: 50%;
-    transition-property: background-color, border, brightness, transform, box-shadow;
-    transition-duration: 0.12s;
+    ignore-parent-flow: true;
+    horizontal-align: right;
+    width: 18px;
+    height: 18px;
+    margin-top: -4px;
+    margin-right: -4px;
+    background-color: #00000000;
+    opacity: 0.18;
+    transition-property: opacity, transform, brightness;
+    transition-duration: 0.10s;
 }
 
 .CloseIcon
 {
-    width: 11px;
-    height: 11px;
+    width: 10px;
+    height: 10px;
     horizontal-align: center;
     vertical-align: center;
-    wash-color: #a0a0a0;
+    wash-color: #ffffff;
 }
 
+.PlayerSurface:hover .CloseButton { opacity: 0.62; }
 .CloseButton:hover
 {
     sound: "UIPanorama.generic_button_rollover";
-    background-color: rgba(219, 68, 55, 0.24);
-    border-color: rgba(255, 113, 103, 0.95);
-    box-shadow: rgba(219, 68, 55, 0.42) 0px 0px 9px 0px;
-    transform: scale3d(1.08, 1.08, 1);
-    brightness: 1.16;
+    opacity: 1;
+    transform: scale3d(1.10, 1.10, 1);
 }
-
-.CloseButton:hover .CloseIcon { wash-color: #ff8b82; }
 .CloseButton:active
 {
-    brightness: 0.70;
-    transform: scale3d(0.94, 0.94, 1);
     sound: "UIPanorama.submenu_select";
+    brightness: 0.66;
+    transform: scale3d(0.90, 0.90, 1);
 }
 
-.TimeInfo
+/* .controls */
+.ControlDeck
 {
     width: 100%;
-    height: 16px;
-    margin-top: 4px;
+    height: 24px;
+    margin-top: 8px;
+}
+
+.VolumeCluster
+{
+    ignore-parent-flow: true;
+    horizontal-align: left;
+    vertical-align: center;
+    width: 67px;
+    height: 24px;
     flow-children: right;
 }
 
-.TimeInfo Label
+.Transport
 {
-    font-family: Stratum2 Condensed, 'Arial Unicode MS';
-    font-size: 10px;
-    font-weight: bold;
-    color: #8a8a8a;
+    ignore-parent-flow: true;
+    horizontal-align: center;
+    vertical-align: center;
+    width: fit-children;
+    height: 24px;
+    flow-children: right;
 }
 
-.CurrentTime { width: fill-parent-flow(1); text-align: left; }
-.Duration { width: fill-parent-flow(1); text-align: right; }
+.ControlButton
+{
+    width: 24px;
+    height: 24px;
+    background-color: #00000000;
+    border: 0px solid #00000000;
+    transition-property: transform, brightness;
+    transition-duration: 0.10s;
+}
 
-.ProgressTrack
+.ControlButton:hover
+{
+    sound: "UIPanorama.generic_button_rollover";
+    transform: scale3d(1.08, 1.08, 1);
+    brightness: 1.06;
+}
+
+.ControlButton:active
+{
+    sound: "UIPanorama.submenu_select";
+    transform: scale3d(0.91, 0.91, 1);
+    brightness: 0.72;
+}
+
+.ControlIcon
+{
+    width: 20px;
+    height: 20px;
+    horizontal-align: center;
+    vertical-align: center;
+    wash-color: #ffffff;
+    transition-property: wash-color, brightness;
+    transition-duration: 0.10s;
+}
+
+.ControlButton:hover .ControlIcon
+{
+    wash-color: #1db954;
+    brightness: 1.12;
+}
+
+.VolumeIconButton .ControlIcon
+{
+    width: 21px;
+    height: 21px;
+}
+
+/* The reference reveals its volume slider only on hover. Speaker click lowers; slider click raises. */
+.VolumeSliderButton
+{
+    width: 42px;
+    height: 24px;
+    margin-left: 1px;
+    background-color: #00000000;
+    opacity: 0;
+    transition-property: opacity, brightness;
+    transition-duration: 0.16s;
+}
+
+.VolumeCluster:hover .VolumeSliderButton { opacity: 1; }
+.VolumeSliderButton:active { brightness: 0.70; }
+
+.VolumeSlider
+{
+    width: 36px;
+    height: 4px;
+    horizontal-align: center;
+    vertical-align: center;
+    overflow: clip;
+    background-color: #5e5e5e;
+    border-radius: 2px;
+}
+
+.VolumeSliderFill
+{
+    width: 60%;
+    height: 4px;
+    background-color: #1db954;
+    border-radius: 2px;
+}
+
+.VolumeSliderHandle
+{
+    width: 6px;
+    height: 6px;
+    x: 58%;
+    vertical-align: center;
+    background-color: #ffffff;
+    border-radius: 50%;
+}
+
+.Volume0 .VolumeSliderFill { width: 0%; }
+.Volume1 .VolumeSliderFill { width: 20%; }
+.Volume2 .VolumeSliderFill { width: 40%; }
+.Volume3 .VolumeSliderFill { width: 60%; }
+.Volume4 .VolumeSliderFill { width: 80%; }
+.Volume5 .VolumeSliderFill { width: 100%; }
+.Volume0 .VolumeSliderHandle { x: 0%; }
+.Volume1 .VolumeSliderHandle { x: 18%; }
+.Volume2 .VolumeSliderHandle { x: 38%; }
+.Volume3 .VolumeSliderHandle { x: 58%; }
+.Volume4 .VolumeSliderHandle { x: 78%; }
+.Volume5 .VolumeSliderHandle { x: 94%; }
+
+.TransportButton { margin-right: 3px; }
+.TransportButton:last-child { margin-right: 0px; }
+.PlayPauseButton .ControlIcon { width: 21px; height: 21px; }
+
+.PauseIcon { visibility: collapse; }
+.MusicHudPlaying .PlayIcon { visibility: collapse; }
+.MusicHudPlaying .PauseIcon { visibility: visible; }
+
+.WaitLabel
+{
+    visibility: collapse;
+    horizontal-align: center;
+    vertical-align: center;
+    font-family: Stratum2 Condensed, 'Arial Unicode MS';
+    font-size: 8px;
+    font-weight: bold;
+    color: #ffffff;
+}
+
+.MusicHudLoading .PlayPauseButton .ControlIcon { visibility: collapse; }
+.MusicHudLoading .WaitLabel { visibility: visible; }
+
+.FavoriteButton
+{
+    visibility: collapse;
+    ignore-parent-flow: true;
+    horizontal-align: right;
+    vertical-align: center;
+}
+
+.MusicHudHasTrack .FavoriteButton { visibility: visible; }
+
+.HeartIcon
+{
+    width: 20px;
+    height: 20px;
+    horizontal-align: center;
+    vertical-align: center;
+    wash-color: #ffffff;
+    transition-property: wash-color, brightness;
+    transition-duration: 0.10s;
+}
+
+.FavoriteButton:hover .HeartIcon { wash-color: #ff9db3; }
+.MusicHudFavorite .HeartIcon
+{
+    wash-color: #ff9db3;
+    brightness: 1.18;
+}
+
+/* .song-time */
+.TimelineRow
 {
     width: 100%;
-    height: 5px;
-    margin-top: 3px;
-    background-color: #5e5e5e;
-    border-radius: 3px;
-    overflow: clip;
+    height: 36px;
+    margin-top: 8px;
+    flow-children: right;
 }
 
+/* .timetext */
+.TimeBadge
+{
+    width: 38px;
+    height: 36px;
+    padding-top: 10px;
+    background-color: #00000060;
+    border-radius: 8px;
+    font-family: Stratum2, 'Arial Unicode MS';
+    font-size: 12px;
+    font-weight: bold;
+    color: #ffffff;
+    text-align: center;
+}
+
+/* .time */
+.ProgressTrack
+{
+    width: fill-parent-flow(1);
+    height: 6px;
+    margin: 15px 6px 0px 6px;
+    overflow: clip;
+    background-color: #5e5e5e;
+    border-radius: 3px;
+}
+
+/* .elapsed */
 .ProgressFill
 {
     width: 0%;
-    height: 5px;
-    background-color: gradient(linear, 0% 0%, 100% 0%, from(#1db954), to(#1ed760));
+    height: 6px;
+    background-color: #1db954;
+    border-radius: 3px;
     transition-property: width;
-    transition-duration: 0.55s;
-    transition-timing-function: linear;
-}
-
-.ProgressHandle
-{
-    width: 4px;
-    height: 7px;
-    x: 0%;
-    vertical-align: center;
-    background-color: #ffffff;
-    border-radius: 2px;
-    box-shadow: rgba(29, 185, 84, 0.55) 0px 0px 5px 0px;
-    transition-property: position;
     transition-duration: 0.55s;
     transition-timing-function: linear;
 }
@@ -296,28 +450,6 @@
 .Progress19 .ProgressFill { width: 95%; }
 .Progress20 .ProgressFill { width: 100%; }
 
-.Progress0 .ProgressHandle { x: 0%; }
-.Progress1 .ProgressHandle { x: 5%; }
-.Progress2 .ProgressHandle { x: 10%; }
-.Progress3 .ProgressHandle { x: 15%; }
-.Progress4 .ProgressHandle { x: 20%; }
-.Progress5 .ProgressHandle { x: 25%; }
-.Progress6 .ProgressHandle { x: 30%; }
-.Progress7 .ProgressHandle { x: 35%; }
-.Progress8 .ProgressHandle { x: 40%; }
-.Progress9 .ProgressHandle { x: 45%; }
-.Progress10 .ProgressHandle { x: 50%; }
-.Progress11 .ProgressHandle { x: 55%; }
-.Progress12 .ProgressHandle { x: 60%; }
-.Progress13 .ProgressHandle { x: 65%; }
-.Progress14 .ProgressHandle { x: 70%; }
-.Progress15 .ProgressHandle { x: 75%; }
-.Progress16 .ProgressHandle { x: 80%; }
-.Progress17 .ProgressHandle { x: 85%; }
-.Progress18 .ProgressHandle { x: 90%; }
-.Progress19 .ProgressHandle { x: 95%; }
-.Progress20 .ProgressHandle { x: 99%; }
-
 .MusicHudLive.MusicHudPlaying .ProgressFill
 {
     width: 42%;
@@ -328,244 +460,370 @@
     animation-direction: alternate;
 }
 
-.MusicHudLive .ProgressHandle { visibility: collapse; }
-
-.ControlDeck
-{
-    width: 100%;
-    height: 42px;
-    margin-top: 8px;
-    padding-left: 76px;
-    padding-right: 70px;
-    flow-children: right;
-}
-
-.DeckButton
-{
-    width: 34px;
-    height: 34px;
-    margin-top: 4px;
-    margin-right: 12px;
-    background-color: rgba(255, 255, 255, 0.0);
-    border: 1px solid rgba(255, 255, 255, 0.0);
-    border-radius: 50%;
-    transition-property: background-color, border, brightness, transform, box-shadow;
-    transition-duration: 0.12s;
-}
-
-.DeckButton:hover
-{
-    sound: "UIPanorama.generic_button_rollover";
-    background-color: rgba(29, 185, 84, 0.14);
-    border-color: rgba(29, 185, 84, 0.90);
-    box-shadow: rgba(29, 185, 84, 0.34) 0px 0px 10px 0px;
-    transform: scale3d(1.10, 1.10, 1);
-    brightness: 1.22;
-}
-
-.DeckButton:active
-{
-    sound: "UIPanorama.submenu_select";
-    brightness: 0.68;
-    background-color: rgba(29, 185, 84, 0.26);
-    transform: scale3d(0.92, 0.92, 1);
-}
-
-.ControlIcon
-{
-    width: 20px;
-    height: 20px;
-    horizontal-align: center;
-    vertical-align: center;
-    wash-color: #f2f2f2;
-    transition-property: wash-color, brightness, transform;
-    transition-duration: 0.12s;
-}
-
-.DeckButton:hover .ControlIcon
-{
-    wash-color: #1ed760;
-    brightness: 1.25;
-}
-
-.PlayPauseButton
-{
-    width: 42px;
-    height: 42px;
-    margin-top: 0;
-    background-color: #1db954;
-    border: 1px solid rgba(30, 215, 96, 0.90);
-    border-radius: 50%;
-    box-shadow: rgba(29, 185, 84, 0.40) 0px 0px 12px 0px;
-}
-
-.PlayPauseButton:hover
-{
-    background-color: #1ed760;
-    border-color: rgba(80, 235, 130, 1.00);
-    box-shadow: rgba(29, 185, 84, 0.55) 0px 0px 16px 0px;
-    transform: scale3d(1.08, 1.08, 1);
-    brightness: 1.08;
-}
-
-.PlayPauseButton:active
-{
-    brightness: 0.72;
-    transform: scale3d(0.93, 0.93, 1);
-}
-
-.PlayPauseButton .ControlIcon
-{
-    width: 22px;
-    height: 22px;
-    wash-color: #ffffff;
-}
-
-.PauseIcon { visibility: collapse; }
-.MusicHudPlaying .PlayIcon { visibility: collapse; }
-.MusicHudPlaying .PauseIcon { visibility: visible; }
-
-.WaitLabel
+/* Search is a separate Spotify-dark dropdown, not part of the reference player surface. */
+.SearchToggleButton
 {
     visibility: collapse;
-    horizontal-align: center;
-    vertical-align: center;
-    font-family: Stratum2 Condensed, 'Arial Unicode MS';
+    width: 250px;
+    height: 28px;
+    margin-top: 6px;
+    padding: 4px 8px 0px 8px;
+    flow-children: right;
+    background-color: #191414;
+    border-radius: 8px;
+    color: #ffffff;
+    transition-property: background-color, brightness, transform;
+    transition-duration: 0.10s;
+}
+
+.MusicHudSearchAvailable .SearchToggleButton { visibility: visible; }
+.SearchToggleButton:hover
+{
+    sound: "UIPanorama.generic_button_rollover";
+    background-color: #232020;
+    brightness: 1.06;
+}
+.SearchToggleButton:active
+{
+    sound: "UIPanorama.submenu_select";
+    brightness: 0.76;
+    transform: scale3d(0.99, 0.96, 1);
+}
+
+.ResultsGlyph
+{
+    width: 16px;
+    height: 18px;
+    margin-right: 7px;
+}
+.ResultsGlyphLine
+{
+    height: 2px;
+    margin-top: 3px;
+    background-color: #1db954;
+    border-radius: 1px;
+}
+.ResultsGlyphLine1 { width: 15px; }
+.ResultsGlyphLine2 { width: 11px; }
+.ResultsGlyphLine3 { width: 7px; }
+
+.SearchToggleTitle
+{
+    width: 65px;
+    height: 20px;
+    font-family: Stratum2, 'Arial Unicode MS';
+    font-size: 10px;
+    font-weight: bold;
+    color: #ffffff;
+}
+.SearchToggleHint
+{
+    width: fill-parent-flow(1);
+    height: 20px;
+    font-family: Stratum2, 'Arial Unicode MS';
+    font-size: 9px;
+    color: #ffffff88;
+    text-align: right;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.SearchToggleChevron
+{
+    width: 12px;
+    height: 20px;
+    margin-left: 5px;
+    font-family: Stratum2, 'Arial Unicode MS';
+    font-size: 12px;
+    font-weight: bold;
+    color: #1db954;
+    text-align: center;
+}
+
+.SearchDrawer
+{
+    visibility: collapse;
+    width: 250px;
+    height: 220px;
+    margin-top: 6px;
+    padding: 9px 8px 7px 8px;
+    flow-children: down;
+    overflow: clip;
+    background-color: #191414;
+    border-radius: 10px;
+    box-shadow: #0000008c 0px 10px 24px 0px;
+    opacity: 0;
+    transform: translateY(-5px);
+    transition-property: opacity, transform;
+    transition-duration: 0.14s;
+    transition-timing-function: ease-out;
+}
+.MusicHudSearchOpen .SearchDrawer
+{
+    visibility: visible;
+    opacity: 1;
+    transform: translateY(0px);
+}
+
+.SearchDrawerHeader
+{
+    width: 100%;
+    height: 28px;
+    margin-bottom: 5px;
+    flow-children: right;
+}
+.SearchDrawerTitle
+{
+    width: fill-parent-flow(1);
+    height: 28px;
+    flow-children: down;
+    overflow: clip;
+}
+.SearchKicker
+{
+    width: 100%;
+    height: 12px;
+    font-family: Stratum2, 'Arial Unicode MS';
     font-size: 9px;
     font-weight: bold;
     letter-spacing: 0.7px;
-    color: #ffffff;
-}
-
-.MusicHudLoading .PlayPauseButton .ControlIcon { visibility: collapse; }
-.MusicHudLoading .WaitLabel { visibility: visible; }
-
-.VolumeButton
-{
-    width: 32px;
-    height: 32px;
-    margin-top: 5px;
-}
-
-.VolumeButton Label
-{
-    horizontal-align: center;
-    vertical-align: center;
-    font-family: Stratum2, 'Arial Unicode MS';
-    font-size: 18px;
-    font-weight: bold;
-    color: #b3b3b3;
-    transition-property: color, brightness, transform;
-    transition-duration: 0.12s;
-}
-
-.VolumeButton:hover
-{
-    background-color: rgba(29, 185, 84, 0.14);
-    border-color: rgba(29, 185, 84, 0.90);
-    box-shadow: rgba(29, 185, 84, 0.34) 0px 0px 10px 0px;
-    transform: scale3d(1.10, 1.10, 1);
-    brightness: 1.20;
-}
-
-.VolumeButton:hover Label { color: #1ed760; }
-.VolumeButton:active
-{
-    brightness: 0.68;
-    transform: scale3d(0.92, 0.92, 1);
-}
-
-.FooterRow
-{
-    width: 100%;
-    height: 18px;
-    margin-top: 6px;
-    flow-children: right;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
-    padding-top: 3px;
-}
-
-.SourceName
-{
-    width: fill-parent-flow(1);
-    height: 14px;
-    font-family: Stratum2 Condensed, 'Arial Unicode MS';
-    font-size: 8px;
-    font-weight: bold;
-    letter-spacing: 0.8px;
-    color: #8a8a8a;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    color: #1db954;
     text-transform: uppercase;
 }
-
-.VolumeReadout
+.SearchQuery
 {
-    width: 120px;
-    height: 14px;
-    flow-children: right;
-}
-
-.VolumeText
-{
-    width: 46px;
-    height: 14px;
-    font-family: Stratum2 Condensed, 'Arial Unicode MS';
-    font-size: 8px;
+    width: 100%;
+    height: 15px;
+    font-family: Stratum2, 'Arial Unicode MS';
+    font-size: 11px;
     font-weight: bold;
-    letter-spacing: 0.7px;
-    color: #8a8a8a;
-    text-align: right;
+    color: #ffffff;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-.VolumeDots
+.SearchPager
 {
-    width: 70px;
-    height: 8px;
-    margin-left: 6px;
-    margin-top: 3px;
+    width: 80px;
+    height: 22px;
+    horizontal-align: right;
     flow-children: right;
 }
-
-.VolumeDot
+.SearchPageButton
 {
-    width: 12px;
-    height: 3px;
-    margin-right: 3px;
-    background-color: #1db954;
-    opacity: 0.15;
-    transition-property: opacity, background-color;
-    transition-duration: 0.12s;
+    visibility: collapse;
+    width: 20px;
+    height: 20px;
+    background-color: #00000000;
+    transition-property: transform, brightness;
+    transition-duration: 0.10s;
+}
+.MusicHudMultiPage .SearchPageButton { visibility: visible; }
+.SearchPageButton:hover
+{
+    sound: "UIPanorama.generic_button_rollover";
+    transform: scale3d(1.08, 1.08, 1);
+    brightness: 1.08;
+}
+.SearchPageButton:active
+{
+    sound: "UIPanorama.submenu_select";
+    transform: scale3d(0.90, 0.90, 1);
+    brightness: 0.70;
+}
+.SearchPageIcon
+{
+    width: 15px;
+    height: 15px;
+    horizontal-align: center;
+    vertical-align: center;
+    wash-color: #ffffff;
+}
+.SearchPageButton:hover .SearchPageIcon { wash-color: #1db954; }
+.SearchPageLabel
+{
+    width: fill-parent-flow(1);
+    height: 18px;
+    padding-top: 3px;
+    font-family: Stratum2, 'Arial Unicode MS';
+    font-size: 8px;
+    color: #ffffff88;
+    text-align: center;
 }
 
-.Volume1 .VolumeDot1,
-.Volume2 .VolumeDot1, .Volume2 .VolumeDot2,
-.Volume3 .VolumeDot1, .Volume3 .VolumeDot2, .Volume3 .VolumeDot3,
-.Volume4 .VolumeDot1, .Volume4 .VolumeDot2, .Volume4 .VolumeDot3, .Volume4 .VolumeDot4,
-.Volume5 .VolumeDot1, .Volume5 .VolumeDot2, .Volume5 .VolumeDot3, .Volume5 .VolumeDot4, .Volume5 .VolumeDot5
+.SearchResultList
 {
+    width: 100%;
+    height: 160px;
+    flow-children: down;
+}
+.SearchResult
+{
+    visibility: collapse;
+    width: 100%;
+    height: 0px;
+    flow-children: right;
+    background-color: #211e1e;
+    border: 1px solid #ffffff0d;
+    border-radius: 5px;
+    transition-property: background-color, border, brightness, transform;
+    transition-duration: 0.10s;
+}
+.SearchItems1 .SearchResult1,
+.SearchItems2 .SearchResult1, .SearchItems2 .SearchResult2,
+.SearchItems3 .SearchResult1, .SearchItems3 .SearchResult2, .SearchItems3 .SearchResult3,
+.SearchItems4 .SearchResult1, .SearchItems4 .SearchResult2, .SearchItems4 .SearchResult3, .SearchItems4 .SearchResult4,
+.SearchItems5 .SearchResult1, .SearchItems5 .SearchResult2, .SearchItems5 .SearchResult3, .SearchItems5 .SearchResult4, .SearchItems5 .SearchResult5
+{
+    visibility: visible;
+    height: 29px;
+    margin-bottom: 3px;
+}
+.SearchResult:hover
+{
+    sound: "UIPanorama.generic_button_rollover";
+    background-color: #282424;
+    border-color: #1db95488;
+    transform: translateX(2px);
+}
+.SearchResult:active
+{
+    sound: "UIPanorama.submenu_select";
+    brightness: 0.72;
+    transform: translateX(3px) scale3d(0.99, 0.96, 1);
+}
+.SearchSelection1 .SearchResult1,
+.SearchSelection2 .SearchResult2,
+.SearchSelection3 .SearchResult3,
+.SearchSelection4 .SearchResult4,
+.SearchSelection5 .SearchResult5
+{
+    background-color: #1db95428;
+    border-color: #1db95499;
+}
+.SearchResultIndex
+{
+    width: 26px;
+    height: 27px;
+    padding-top: 7px;
+    font-family: Stratum2 Condensed, 'Arial Unicode MS';
+    font-size: 9px;
+    font-weight: bold;
+    color: #1db954;
+    text-align: center;
+}
+.SearchResultCopy
+{
+    width: fill-parent-flow(1);
+    height: 28px;
+    padding: 2px 4px 0px 2px;
+    flow-children: down;
+    overflow: clip;
+}
+.SearchResultTitle
+{
+    width: 100%;
+    height: 14px;
+    font-family: Stratum2, 'Arial Unicode MS';
+    font-size: 10px;
+    font-weight: bold;
+    color: #ffffff;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.SearchResultMeta
+{
+    width: 100%;
+    height: 11px;
+    font-family: Stratum2, 'Arial Unicode MS';
+    font-size: 8px;
+    color: #ffffff88;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.SearchResultPlay
+{
+    width: 15px;
+    height: 15px;
+    margin: 6px 6px 0px 2px;
+    wash-color: #ffffff;
+    opacity: 0.76;
+}
+.SearchSelection0 .SearchResultPlay { opacity: 0.76; }
+.SearchResult:hover .SearchResultPlay { wash-color: #1db954; opacity: 1; }
+.SearchSelection1 .SearchResult1 .SearchResultPlay,
+.SearchSelection2 .SearchResult2 .SearchResultPlay,
+.SearchSelection3 .SearchResult3 .SearchResultPlay,
+.SearchSelection4 .SearchResult4 .SearchResultPlay,
+.SearchSelection5 .SearchResult5 .SearchResultPlay
+{
+    wash-color: #1db954;
     opacity: 1;
 }
 
-.Volume0 .VolumeText { color: #f0645b; }
+.SearchEmpty
+{
+    visibility: collapse;
+    width: 100%;
+    height: 0px;
+    padding-top: 53px;
+    flow-children: down;
+    background-color: #211e1e;
+    border-radius: 5px;
+}
+.SearchItems0 .SearchEmpty
+{
+    visibility: visible;
+    height: 160px;
+}
+.SearchEmptyTitle
+{
+    width: 100%;
+    height: 18px;
+    font-family: Stratum2, 'Arial Unicode MS';
+    font-size: 11px;
+    font-weight: bold;
+    color: #ffffffcc;
+    text-align: center;
+}
+.SearchEmptyHint
+{
+    width: 100%;
+    height: 15px;
+    font-family: Stratum2, 'Arial Unicode MS';
+    font-size: 8px;
+    color: #ffffff66;
+    text-align: center;
+}
+.SearchDrawerHint
+{
+    width: 100%;
+    height: 10px;
+    font-family: Stratum2 Condensed, 'Arial Unicode MS';
+    font-size: 7px;
+    letter-spacing: 0.25px;
+    color: #ffffff55;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
 
 @keyframes 'spectrum-a'
 {
-    0% { transform: scale3d(1, 0.10, 1); opacity: 0.72; }
-    33% { transform: scale3d(1, 0.60, 1); opacity: 1; }
-    66% { transform: scale3d(1, 0.90, 1); opacity: 0.82; }
-    100% { transform: scale3d(1, 0.10, 1); opacity: 0.72; }
+    0% { transform: scale3d(1, 0.10, 1); }
+    33% { transform: scale3d(1, 0.60, 1); }
+    66% { transform: scale3d(1, 0.90, 1); }
+    100% { transform: scale3d(1, 0.10, 1); }
 }
 
 @keyframes 'spectrum-loading'
 {
     0% { opacity: 0.22; }
-    50% { opacity: 0.85; }
+    50% { opacity: 0.90; }
     100% { opacity: 0.22; }
 }
 
 @keyframes 'music-live-progress'
 {
-    0% { transform: translateX(-120px); opacity: 0.40; }
-    100% { transform: translateX(215px); opacity: 1; }
+    0% { transform: translateX(-115px); opacity: 0.42; }
+    100% { transform: translateX(120px); opacity: 1; }
 }

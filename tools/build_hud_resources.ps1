@@ -14,7 +14,8 @@ $layoutPath = Join-Path $projectRoot "hud\layout\online_music_player_custom_hud.
 $stylePath = Join-Path $projectRoot "hud\styles\online_music_player_custom_hud.css"
 $iconSourceDir = Join-Path $projectRoot "hud\icons"
 $iconRasterizer = Join-Path $projectRoot "tools\rasterize_svg_icons.py"
-$iconNames = @("close", "music_note", "next", "pause", "play", "previous")
+$iconNames = @("close", "music_note", "next", "pause", "play", "previous", "volume_down", "volume_up", "heart")
+$layoutIconNames = @("close", "music_note", "next", "pause", "play", "previous", "volume_up", "heart")
 $pluginPath = Join-Path $projectRoot "src\SwiftOnlineMusicPlayerPlugin.cs"
 $bridgePath = Join-Path $projectRoot "src\CustomHudNative.cs"
 $gameDataPath = Join-Path $projectRoot "resources\gamedata\signatures.jsonc"
@@ -102,10 +103,22 @@ function Test-HudSources {
     if (-not $layout.SelectSingleNode("//Panel[@id='music_dialog']")) {
         throw "Custom HUD layout is missing #music_dialog."
     }
-    foreach ($iconName in $iconNames) {
-        $resource = "s2r://panorama/images/custom_game/music_player/$iconName.vtex_c"
+    foreach ($xpath in @(
+        "//Panel[contains(concat(' ', normalize-space(@class), ' '), ' PlayerSurface ')]/Panel[contains(concat(' ', normalize-space(@class), ' '), ' MusicHeader ')]",
+        "//Panel[contains(concat(' ', normalize-space(@class), ' '), ' PlayerSurface ')]/Panel[contains(concat(' ', normalize-space(@class), ' '), ' ControlDeck ')]",
+        "//Panel[contains(concat(' ', normalize-space(@class), ' '), ' PlayerSurface ')]/Panel[contains(concat(' ', normalize-space(@class), ' '), ' TimelineRow ')]"
+    )) {
+        if (-not $layout.SelectSingleNode($xpath)) {
+            throw "Custom HUD layout no longer matches the reference card hierarchy: $xpath"
+        }
+    }
+    if ($layout.SelectSingleNode("//Image[contains(@src, '.vtex_c')]")) {
+        throw "Image.src must use the logical .vtex path, not the packed .vtex_c filename."
+    }
+    foreach ($iconName in $layoutIconNames) {
+        $resource = "s2r://panorama/images/custom_game/music_player/$iconName.vtex"
         if (-not $layout.SelectSingleNode("//Image[@src='$resource']")) {
-            throw "Custom HUD layout is missing VTEX image reference: $resource"
+            throw "Custom HUD layout is missing logical VTEX image reference: $resource"
         }
     }
 
@@ -116,6 +129,15 @@ function Test-HudSources {
         "music_player_next",
         "music_player_volume_down",
         "music_player_volume_up",
+        "music_player_favorite",
+        "music_player_search_toggle",
+        "music_player_results_prev",
+        "music_player_results_next",
+        "music_player_result_1",
+        "music_player_result_2",
+        "music_player_result_3",
+        "music_player_result_4",
+        "music_player_result_5",
         "music_player_close"
     )
     foreach ($buttonId in $expectedButtons) {
@@ -126,6 +148,30 @@ function Test-HudSources {
     }
 
     $style = Get-Content -Raw -LiteralPath $stylePath
+    $referenceStyleContracts = [ordered]@{
+        ".MusicPlayerPresenter" = @("width: 250px;", "height: 155px;")
+        ".PlayerSurface" = @("width: 250px;", "height: 155px;", "background-color: #191414;", "border-radius: 10px;")
+        ".AlbumArt" = @("width: 40px;", "height: 40px;", "background-color: #ffffff;", "border-radius: 5px;")
+        ".TrackTitle" = @("font-size: 20px;", "color: #ffffff;")
+        ".ControlButton" = @("width: 24px;", "height: 24px;", "background-color: #00000000;")
+        ".TimeBadge" = @("background-color: #00000060;", "border-radius: 8px;")
+        ".ProgressTrack" = @("height: 6px;", "background-color: #5e5e5e;", "border-radius: 3px;")
+        ".ProgressFill" = @("background-color: #1db954;", "border-radius: 3px;")
+    }
+    foreach ($selector in $referenceStyleContracts.Keys) {
+        $selectorMatch = [regex]::Match(
+            $style,
+            [regex]::Escape($selector) + '\s*\{(?<body>.*?)\}',
+            [System.Text.RegularExpressions.RegexOptions]::Singleline)
+        if (-not $selectorMatch.Success) {
+            throw "Stylesheet is missing reference selector: $selector"
+        }
+        foreach ($declaration in $referenceStyleContracts[$selector]) {
+            if (-not $selectorMatch.Groups["body"].Value.Contains($declaration)) {
+                throw "Reference selector $selector is missing declaration: $declaration"
+            }
+        }
+    }
     foreach ($step in 0..20) {
         if ($style -notmatch [regex]::Escape(".Progress$step .ProgressFill")) {
             throw "Stylesheet is missing Progress$step fill coverage."
@@ -135,8 +181,19 @@ function Test-HudSources {
         if ($style -notmatch [regex]::Escape(".Volume$step")) {
             throw "Stylesheet is missing Volume$step coverage."
         }
+        if ($style -notmatch [regex]::Escape(".SearchItems$step")) {
+            throw "Stylesheet is missing SearchItems$step coverage."
+        }
+        if ($style -notmatch [regex]::Escape(".SearchSelection$step")) {
+            throw "Stylesheet is missing SearchSelection$step coverage."
+        }
     }
-    foreach ($requiredStyle in @(".SpectrumBar", "@keyframes 'spectrum-a'", ".MusicHudPlaying .PauseIcon")) {
+    foreach ($requiredStyle in @(
+        ".SpectrumBar",
+        "@keyframes 'spectrum-a'",
+        ".MusicHudPlaying .PauseIcon",
+        ".MusicHudSearchOpen .SearchDrawer",
+        ".MusicHudFavorite .HeartIcon")) {
         if ($style -notmatch [regex]::Escape($requiredStyle)) {
             throw "Stylesheet is missing the native spectrum/icon contract: $requiredStyle"
         }
@@ -147,6 +204,30 @@ function Test-HudSources {
         if ($plugin -notmatch [regex]::Escape('case "' + $buttonId + '"')) {
             throw "Plugin click allowlist is missing: $buttonId"
         }
+    }
+    foreach ($dialogVariable in @(
+        "track-title", "artist-name", "source-name", "current-time", "duration", "play-action",
+        "volume-text", "status", "search-hint-kicker", "search-hint-text", "results-label",
+        "results-hint", "results-chevron", "search-heading", "search-query", "search-page",
+        "search-empty-title", "search-empty-hint", "search-drawer-hint")) {
+        if ($plugin -notmatch [regex]::Escape('"' + $dialogVariable + '"')) {
+            throw "Plugin does not render dialog variable: $dialogVariable"
+        }
+    }
+    foreach ($resultSuffix in @("index", "title", "meta")) {
+        $template = 'search-result-{variableIndex}-' + $resultSuffix
+        if ($plugin -notmatch [regex]::Escape($template)) {
+            throw "Plugin does not render result dialog-variable template: $template"
+        }
+        foreach ($row in 1..5) {
+            $variable = "{s:search-result-$row-$resultSuffix}"
+            if ($layout.OuterXml -notmatch [regex]::Escape($variable)) {
+                throw "Layout is missing result dialog variable: $variable"
+            }
+        }
+    }
+    if ($plugin -notmatch [regex]::Escape("PlaybackState.Browsing")) {
+        throw "Plugin is missing the non-autoplay browsing state."
     }
     foreach ($apiUse in @("DecodeFromUrlAsync", ".Play(", ".Pause(", ".Resume(", ".SetVolume(")) {
         if ($plugin -notmatch [regex]::Escape($apiUse)) {
@@ -210,7 +291,7 @@ function Compile-HudResources {
 '@
     Write-TextNoBom -Path (Join-Path $contentLayoutDir "online_music_player_custom_hud.vxml") -Value (Get-Content -Raw -LiteralPath $layoutPath)
     Write-TextNoBom -Path (Join-Path $contentStyleDir "online_music_player_custom_hud.vcss") -Value (Get-Content -Raw -LiteralPath $stylePath)
-    & python $iconRasterizer --source $iconSourceDir --output $contentImageDir --size 64
+    & python $iconRasterizer --source $iconSourceDir --output $contentImageDir --size 128
     if ($LASTEXITCODE -ne 0) { throw "SVG icon rasterization failed with exit code $LASTEXITCODE" }
     Set-Content -LiteralPath (Join-Path $paths.ContentAddon "addoninfo.txt") -Encoding ASCII -Value @'
 <!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:generic:version{7412167c-06e9-4698-aff2-e63eb59037e7} -->
@@ -267,7 +348,10 @@ function Pack-HudVpk {
         "panorama\images\custom_game\music_player\next.vtex_c",
         "panorama\images\custom_game\music_player\pause.vtex_c",
         "panorama\images\custom_game\music_player\play.vtex_c",
-        "panorama\images\custom_game\music_player\previous.vtex_c")) {
+        "panorama\images\custom_game\music_player\previous.vtex_c",
+        "panorama\images\custom_game\music_player\volume_down.vtex_c",
+        "panorama\images\custom_game\music_player\volume_up.vtex_c",
+        "panorama\images\custom_game\music_player\heart.vtex_c")) {
         Assert-FileExists -Path (Join-Path $paths.GameAddon $relativePath) -Message "Compiled addon is missing: $relativePath"
     }
 
@@ -277,7 +361,7 @@ function Pack-HudVpk {
     Assert-FileExists -Path $outVpk -Message "Expected VPK was not created: $outVpk"
 
     $tree = (& $VpkEditCli --file-tree $outVpk | Out-String)
-    foreach ($fileName in @("addoninfo.txt", "online_music_player_custom_hud.vxml_c", "online_music_player_custom_hud.vcss_c", "music_note.vtex_c", "play.vtex_c", "pause.vtex_c", "previous.vtex_c", "next.vtex_c", "close.vtex_c")) {
+    foreach ($fileName in @("addoninfo.txt", "online_music_player_custom_hud.vxml_c", "online_music_player_custom_hud.vcss_c", "music_note.vtex_c", "play.vtex_c", "pause.vtex_c", "previous.vtex_c", "next.vtex_c", "close.vtex_c", "volume_down.vtex_c", "volume_up.vtex_c", "heart.vtex_c")) {
         if ($tree -notmatch [regex]::Escape($fileName)) { throw "Packed VPK is missing: $fileName" }
     }
     Write-Host "Packed HUD VPK: $outVpk"

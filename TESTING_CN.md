@@ -37,9 +37,10 @@ Audio 测试阶段保持 `UseFFMpeg: false`，先使用随插件提供的 `pcmde
 1. 输入 `!music`，应出现播放器卡片并捕获鼠标。
 2. 点击播放，默认 SoundHelix 测试曲应在数秒内开始。
 3. 依次测试暂停、继续、音量减、音量加、上一首、下一首。
-4. 输入 `!music_close` 或点击 X；UI 应关闭，但音乐继续。
-5. 再次输入 `!music`；UI 应恢复且显示当前状态。
-6. 输入 `!music_stop`；音乐应停止，进度归零。
+4. 点击爱心，确认当前曲目的收藏高亮可切换，切歌后状态按曲目独立；重新连接后无需保留。
+5. 输入 `!music_close` 或点击 X；UI 应关闭，但音乐继续。
+6. 再次输入 `!music`；UI 应恢复且显示当前状态。
+7. 输入 `!music_stop`；音乐应停止，进度归零。
 
 同时观察：按钮 Hover 是否正常、进度是否每秒推进、音量文本是否为 0%–100%、关闭后鼠标是否立即恢复。
 
@@ -55,11 +56,12 @@ Audio 测试阶段保持 `UseFFMpeg: false`，先使用随插件提供的 `pcmde
 
 预期行为：
 
-1. HUD 状态先变成 `SEARCHING / MUSIC SQUARE · NETEASE`。
-2. 聊天区列出最多 5 条结果，并自动加载第 1 条。
-3. `!music_pick 2` 播放第 2 条；HUD 左右按钮也在这 5 条候选中切换。
-4. `!music_library` 返回 SoundHelix 静态曲库。
-5. 5 秒内连续搜索应提示冷却，而不是重复请求接口。
+1. HUD 状态先变成 `SEARCHING / KUWO PRIMARY · NETEASE FALLBACK`，并展开搜索抽屉。
+2. 搜索完成后 HUD 进入 `RESULTS READY`，显示可点击的候选曲目行，不应自动播放第 1 条。
+3. 点击任一曲目行应立即收起抽屉并加载该曲；超过 5 条时测试抽屉翻页按钮。
+4. `!music_pick 2` 仍可播放第 2 条；主播放器左右按钮在本次候选中切换。
+5. `!music_library` 返回 SoundHelix 静态曲库并隐藏搜索入口。
+6. 5 秒内连续搜索应提示冷却，而不是重复请求接口。
 
 搜索结果时长未知，所以 HUD 显示 `LIVE` 属于当前设计，不代表一定是直播流。
 
@@ -134,12 +136,13 @@ vcss
 10. 客户端控制台错误：
 ```
 
-## 当前构建验证
+## 构建验证
 
 - `server.dll` SHA-256：`9E5749D77DCB68883477FEAE751A3F28068D119EC145EDCB0E4D48D15B538D36`
 - 四条 Custom HUD 原生签名均唯一命中。
 - Audio v1.0.6 官方 ZIP SHA-256：`CF719B1AE4784202D7673BF2D55B172A0F7A0E8502D84C7BE968AC14D157F4FF`
-- 服务器、客户端和项目 VPK SHA-256 均为：`A0836C012BBD119908A07D39304370AC3FF36612B948F154E4037E609B6DBC64`
+- 上次实机安装的服务器/客户端 VPK SHA-256：`A0836C012BBD119908A07D39304370AC3FF36612B948F154E4037E609B6DBC64`。
+- 本次新生成、尚未安装的项目 VPK SHA-256：`BCEA949DCA4BB375F2B6C3AB461F629ABCF669C924E0CF5FFFC7E11ECABF8975`。
 
 原始 `gameinfo.gi` 备份位于：
 

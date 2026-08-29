@@ -31,6 +31,7 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
     private const string RuntimeConfigSectionName = "MusicPlayer";
     private const int ProgressStepCount = 20;
     private const int VolumeStepCount = 5;
+    private const int SearchRowsPerPage = 5;
 
     private readonly Dictionary<int, PlayerSession> _sessions = [];
     private readonly HashSet<int> _openSlots = [];
@@ -223,7 +224,7 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
             $"[Music] audio={(_audioApi is null ? "offline" : "ready")}, hud={(_nativeHud is null ? "offline" : "ready")}, search={(_config.MusicSquareSearch.Enabled ? "kuwo-primary+netease-fallback" : "disabled")}, tracks={_config.Tracks.Count}, your-state={state}.");
     }
 
-    [Command("music_search", registerRaw: true, helpText: "Search the MusicSquare-compatible providers and play the best verified result.")]
+    [Command("music_search", registerRaw: true, helpText: "Search the MusicSquare-compatible providers and open the clickable result list.")]
     public void SearchCommand(ICommandContext context)
     {
         var player = context.Sender;
@@ -265,6 +266,9 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
         session.Generation++;
         session.SearchResults.Clear();
         session.SearchIndex = 0;
+        session.SearchPage = 0;
+        session.SearchMenuOpen = true;
+        session.LastSearchQuery = query;
         session.PendingTrack = new MusicTrackConfig
         {
             Title = SanitizeStatus(query, "Searching"),
@@ -324,6 +328,7 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
         }
 
         BeginLoadSearchTrack(session, selection - 1);
+        session.SearchMenuOpen = false;
         RenderHudIfOpen(session, forceClasses: false);
         context.Reply($"[Music] Loading result {selection}: {CurrentTrack(session)?.Title}.");
     }
@@ -341,6 +346,9 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
         var session = GetOrCreateSession(player.Slot);
         session.SearchResults.Clear();
         session.SearchIndex = 0;
+        session.SearchPage = 0;
+        session.SearchMenuOpen = false;
+        session.LastSearchQuery = string.Empty;
         session.PendingTrack = null;
         if (_config.Tracks.Count == 0)
         {
@@ -405,6 +413,8 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
         session.SearchResults.Clear();
         session.SearchResults.AddRange(results);
         session.SearchIndex = 0;
+        session.SearchPage = 0;
+        session.SearchMenuOpen = true;
         var player = FindPlayer(playerSlot);
         if (results.Count == 0)
         {
@@ -415,15 +425,10 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
             return;
         }
 
-        player?.SendChat($"[Music] Found {results.Count} result(s). Playing #1; use !music_pick <number> or the HUD arrows:");
-        for (var index = 0; index < results.Count; index++)
-        {
-            var result = results[index];
-            var variant = LooksLikeVariant(result.Title, result.Artist) ? " · variant" : string.Empty;
-            player?.SendChat($"[Music] {index + 1}. {result.Title} — {result.Artist} [{result.Source}]{variant}");
-        }
+        session.State = PlaybackState.Browsing;
+        session.Error = string.Empty;
+        player?.SendChat($"[Music] Found {results.Count} result(s). Choose a track in the HUD or use !music_pick <number>.");
 
-        BeginLoadSearchTrack(session, 0);
         RenderHudIfOpen(session, forceClasses: true);
     }
 
@@ -435,6 +440,7 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
         }
 
         session.PendingTrack = null;
+        session.SearchMenuOpen = true;
         session.State = PlaybackState.Error;
         session.Error = exception is OperationCanceledException
             ? "Search timed out"
@@ -489,6 +495,9 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
                 ResetPlayback(session);
                 session.SearchResults.Clear();
                 session.SearchIndex = 0;
+                session.SearchPage = 0;
+                session.SearchMenuOpen = false;
+                session.LastSearchQuery = string.Empty;
                 session.PendingTrack = null;
                 session.ActiveTrack = null;
                 session.TrackIndex = normalized.Tracks.Count == 0
@@ -635,6 +644,33 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
             case "music_player_volume_up":
                 AdjustVolume(session, 1);
                 break;
+            case "music_player_favorite":
+                ToggleFavorite(session);
+                break;
+            case "music_player_search_toggle":
+                ToggleSearchMenu(session);
+                break;
+            case "music_player_results_prev":
+                ChangeSearchPage(session, -1);
+                break;
+            case "music_player_results_next":
+                ChangeSearchPage(session, 1);
+                break;
+            case "music_player_result_1":
+                SelectSearchRow(session, 0);
+                break;
+            case "music_player_result_2":
+                SelectSearchRow(session, 1);
+                break;
+            case "music_player_result_3":
+                SelectSearchRow(session, 2);
+                break;
+            case "music_player_result_4":
+                SelectSearchRow(session, 3);
+                break;
+            case "music_player_result_5":
+                SelectSearchRow(session, 4);
+                break;
             case "music_player_close":
                 _ = CloseHud(player.Slot);
                 return;
@@ -680,6 +716,7 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
                 if (session.SearchResults.Count > 0)
                 {
                     BeginLoadSearchTrack(session, session.SearchIndex);
+                    session.SearchMenuOpen = false;
                 }
                 else
                 {
@@ -719,6 +756,56 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
         BeginLoadTrack(session, index);
     }
 
+    private static void ToggleSearchMenu(PlayerSession session)
+    {
+        if (session.SearchResults.Count == 0 && string.IsNullOrEmpty(session.LastSearchQuery))
+        {
+            return;
+        }
+
+        session.SearchMenuOpen = !session.SearchMenuOpen;
+    }
+
+    private static void ChangeSearchPage(PlayerSession session, int delta)
+    {
+        var pageCount = SearchPageCount(session.SearchResults.Count);
+        if (pageCount <= 1)
+        {
+            session.SearchPage = 0;
+            return;
+        }
+
+        var nextPage = (session.SearchPage + delta) % pageCount;
+        session.SearchPage = nextPage < 0 ? nextPage + pageCount : nextPage;
+    }
+
+    private void SelectSearchRow(PlayerSession session, int rowIndex)
+    {
+        var searchIndex = session.SearchPage * SearchRowsPerPage + rowIndex;
+        if (searchIndex < 0 || searchIndex >= session.SearchResults.Count)
+        {
+            return;
+        }
+
+        BeginLoadSearchTrack(session, searchIndex);
+        session.SearchMenuOpen = false;
+    }
+
+    private void ToggleFavorite(PlayerSession session)
+    {
+        var track = CurrentTrack(session);
+        if (track is null || session.State == PlaybackState.Searching)
+        {
+            return;
+        }
+
+        var key = TrackKey(track);
+        if (!session.FavoriteTrackKeys.Remove(key))
+        {
+            session.FavoriteTrackKeys.Add(key);
+        }
+    }
+
     private void BeginLoadTrack(PlayerSession session, int trackIndex)
     {
         if (_config.Tracks.Count == 0)
@@ -731,6 +818,9 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
         session.TrackIndex = Math.Clamp(trackIndex, 0, _config.Tracks.Count - 1);
         session.SearchResults.Clear();
         session.SearchIndex = 0;
+        session.SearchPage = 0;
+        session.SearchMenuOpen = false;
+        session.LastSearchQuery = string.Empty;
         session.PendingTrack = null;
         BeginLoadResolvedTrack(session, _config.Tracks[session.TrackIndex]);
     }
@@ -745,6 +835,7 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
         }
 
         session.SearchIndex = Math.Clamp(searchIndex, 0, session.SearchResults.Count - 1);
+        session.SearchPage = session.SearchIndex / SearchRowsPerPage;
         session.PendingTrack = null;
         BeginLoadResolvedTrack(session, session.SearchResults[session.SearchIndex]);
     }
@@ -950,6 +1041,20 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
                 ProgressStepCount);
         }
 
+        var searchPageCount = SearchPageCount(session.SearchResults.Count);
+        session.SearchPage = Math.Clamp(session.SearchPage, 0, searchPageCount - 1);
+        var searchPageStart = session.SearchPage * SearchRowsPerPage;
+        var searchPageItems = Math.Clamp(
+            session.SearchResults.Count - searchPageStart,
+            0,
+            SearchRowsPerPage);
+        var searchSelection = session.SearchIndex >= searchPageStart &&
+                              session.SearchIndex < searchPageStart + searchPageItems
+            ? session.SearchIndex - searchPageStart + 1
+            : 0;
+        var searchAvailable = !string.IsNullOrEmpty(session.LastSearchQuery);
+        var hasTrack = track is not null && session.State != PlaybackState.Searching;
+
         SetDialogValue(layoutAddress, session.PlayerSlot, "track-title", track?.Title ?? "No tracks configured");
         SetDialogValue(layoutAddress, session.PlayerSlot, "artist-name", track?.Artist ?? "Edit config.jsonc");
         SetDialogValue(layoutAddress, session.PlayerSlot, "source-name", track?.Source ?? "Server library");
@@ -966,6 +1071,55 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
         });
         SetDialogValue(layoutAddress, session.PlayerSlot, "volume-text", $"VOL {session.VolumeStep * 20}%");
         SetDialogValue(layoutAddress, session.PlayerSlot, "status", StatusText(session));
+        SetDialogValue(layoutAddress, session.PlayerSlot, "search-hint-kicker", "DISCOVER");
+        SetDialogValue(layoutAddress, session.PlayerSlot, "search-hint-text", "USE !MUSIC_SEARCH <SONG OR ARTIST>");
+        SetDialogValue(layoutAddress, session.PlayerSlot, "search-heading", "SEARCH RESULTS");
+        SetDialogValue(layoutAddress, session.PlayerSlot, "search-query", session.LastSearchQuery);
+        SetDialogValue(layoutAddress, session.PlayerSlot, "search-page", session.State == PlaybackState.Searching
+            ? "SEARCHING"
+            : session.SearchResults.Count == 0
+                ? "0 RESULTS"
+                : $"{session.SearchPage + 1} / {searchPageCount}");
+        SetDialogValue(layoutAddress, session.PlayerSlot, "results-label", session.State == PlaybackState.Searching
+            ? "SEARCHING"
+            : $"{session.SearchResults.Count} RESULT{(session.SearchResults.Count == 1 ? string.Empty : "S")}");
+        SetDialogValue(layoutAddress, session.PlayerSlot, "results-hint", session.SearchMenuOpen
+            ? "CLICK TO COLLAPSE"
+            : "CLICK TO BROWSE");
+        SetDialogValue(layoutAddress, session.PlayerSlot, "results-chevron", session.SearchMenuOpen ? "-" : "+");
+        SetDialogValue(layoutAddress, session.PlayerSlot, "search-empty-title", session.State == PlaybackState.Searching
+            ? "SEARCHING ONLINE PROVIDERS"
+            : "NO PLAYABLE RESULTS");
+        SetDialogValue(layoutAddress, session.PlayerSlot, "search-empty-hint", session.State == PlaybackState.Searching
+            ? "KUWO PRIMARY / NETEASE FALLBACK"
+            : "TRY A MORE SPECIFIC SONG OR ARTIST");
+        SetDialogValue(layoutAddress, session.PlayerSlot, "search-drawer-hint", "CLICK A TRACK TO PLAY / USE THE ARROWS TO CHANGE PAGE");
+
+        for (var row = 0; row < SearchRowsPerPage; row++)
+        {
+            var resultIndex = searchPageStart + row;
+            var result = resultIndex < session.SearchResults.Count
+                ? session.SearchResults[resultIndex]
+                : null;
+            var variableIndex = row + 1;
+            SetDialogValue(
+                layoutAddress,
+                session.PlayerSlot,
+                $"search-result-{variableIndex}-index",
+                result is null ? string.Empty : (resultIndex + 1).ToString("00"));
+            SetDialogValue(
+                layoutAddress,
+                session.PlayerSlot,
+                $"search-result-{variableIndex}-title",
+                result?.Title ?? string.Empty);
+            SetDialogValue(
+                layoutAddress,
+                session.PlayerSlot,
+                $"search-result-{variableIndex}-meta",
+                result is null
+                    ? string.Empty
+                    : $"{result.Artist} / {result.Source} / {(result.DurationSeconds > 0 ? FormatTime(TimeSpan.FromSeconds(result.DurationSeconds)) : "LIVE")}");
+        }
 
         if (forceClasses)
         {
@@ -976,6 +1130,11 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
             foreach (var step in Enumerable.Range(0, VolumeStepCount + 1))
             {
                 SetBooleanClass(layoutAddress, session.PlayerSlot, $"Volume{step}", false);
+            }
+            foreach (var step in Enumerable.Range(0, SearchRowsPerPage + 1))
+            {
+                SetBooleanClass(layoutAddress, session.PlayerSlot, $"SearchItems{step}", false);
+                SetBooleanClass(layoutAddress, session.PlayerSlot, $"SearchSelection{step}", false);
             }
         }
 
@@ -993,8 +1152,31 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
             forceClasses ? null : session.LastVolumeClass);
         session.LastVolumeClass = $"Volume{session.VolumeStep}";
 
+        RenderExclusiveClass(
+            layoutAddress,
+            session.PlayerSlot,
+            $"SearchItems{searchPageItems}",
+            forceClasses ? null : session.LastSearchItemsClass);
+        session.LastSearchItemsClass = $"SearchItems{searchPageItems}";
+
+        RenderExclusiveClass(
+            layoutAddress,
+            session.PlayerSlot,
+            $"SearchSelection{searchSelection}",
+            forceClasses ? null : session.LastSearchSelectionClass);
+        session.LastSearchSelectionClass = $"SearchSelection{searchSelection}";
+
         RenderStateClasses(layoutAddress, session, forceClasses);
         SetBooleanClass(layoutAddress, session.PlayerSlot, "MusicHudLive", track?.DurationSeconds is not > 0);
+        SetBooleanClass(layoutAddress, session.PlayerSlot, "MusicHudSearchAvailable", searchAvailable);
+        SetBooleanClass(layoutAddress, session.PlayerSlot, "MusicHudSearchOpen", searchAvailable && session.SearchMenuOpen);
+        SetBooleanClass(layoutAddress, session.PlayerSlot, "MusicHudMultiPage", searchPageCount > 1);
+        SetBooleanClass(layoutAddress, session.PlayerSlot, "MusicHudHasTrack", hasTrack);
+        SetBooleanClass(
+            layoutAddress,
+            session.PlayerSlot,
+            "MusicHudFavorite",
+            hasTrack && session.FavoriteTrackKeys.Contains(TrackKey(track!)));
     }
 
     private void RenderStateClasses(nint layoutAddress, PlayerSession session, bool force)
@@ -1004,6 +1186,7 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
             PlaybackState.Playing => "MusicHudPlaying",
             PlaybackState.Searching => "MusicHudLoading",
             PlaybackState.Loading => "MusicHudLoading",
+            PlaybackState.Browsing => "MusicHudBrowsing",
             PlaybackState.Error => "MusicHudError",
             PlaybackState.Paused => "MusicHudPaused",
             _ => "MusicHudIdle"
@@ -1022,7 +1205,7 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
         {
             foreach (var className in new[]
                      {
-                         "MusicHudPlaying", "MusicHudLoading", "MusicHudError", "MusicHudPaused", "MusicHudIdle"
+                         "MusicHudPlaying", "MusicHudLoading", "MusicHudBrowsing", "MusicHudError", "MusicHudPaused", "MusicHudIdle"
                      })
             {
                 SetBooleanClass(layoutAddress, session.PlayerSlot, className, false);
@@ -1089,6 +1272,12 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
         session.ElapsedBeforeResume +
         (session.StartedAt is { } started ? DateTimeOffset.UtcNow - started : TimeSpan.Zero);
 
+    private static int SearchPageCount(int resultCount) =>
+        Math.Max(1, (Math.Max(0, resultCount) + SearchRowsPerPage - 1) / SearchRowsPerPage);
+
+    private static string TrackKey(MusicTrackConfig track) =>
+        $"{track.Source}\n{track.SourceId}\n{track.Url}";
+
     private static string FormatTime(TimeSpan time)
     {
         var totalSeconds = Math.Max(0, (int)Math.Floor(time.TotalSeconds));
@@ -1099,6 +1288,7 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
     {
         PlaybackState.Playing => "ONLINE STREAM / PLAYING",
         PlaybackState.Paused => "PAUSED / CLICK PLAY TO RESUME",
+        PlaybackState.Browsing => "RESULTS READY / CLICK A TRACK TO PLAY",
         PlaybackState.Searching => "SEARCHING / KUWO PRIMARY · NETEASE FALLBACK",
         PlaybackState.Loading => "VERIFYING / DECODING SELECTED AUDIO",
         PlaybackState.Error => $"ERROR / {session.Error}",
@@ -1121,26 +1311,6 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
         }
 
         return new string(value.Where(character => !char.IsControl(character)).ToArray()).Trim();
-    }
-
-    private static readonly string[] TrackVariantMarkers =
-    [
-        "live", "remix", "demo", "cover", "伴奏", "翻唱", "柔情版", "3d", "环绕",
-        "montagem", "童声", "儿歌", "女声", "男声", "男生", "女生", "吉他版", "钢琴版",
-        "现场", "原唱", "dj", "mix", "speed", "slowed", "低音", "加速", "变调"
-    ];
-
-    private static bool LooksLikeVariant(string title, string artist)
-    {
-        var text = (title + " " + artist).ToLowerInvariant();
-        foreach (var marker in TrackVariantMarkers)
-        {
-            if (text.Contains(marker, StringComparison.Ordinal))
-            {
-                return true;
-            }
-        }
-        return false;
     }
 
     private static string ChannelId(int playerSlot) => $"swift-online-music-player-{playerSlot}";
@@ -1247,6 +1417,7 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
     {
         Idle,
         Searching,
+        Browsing,
         Loading,
         Playing,
         Paused,
@@ -1261,9 +1432,13 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
         public int VolumeStep { get; set; }
         public int Generation { get; set; }
         public int SearchIndex { get; set; }
+        public int SearchPage { get; set; }
+        public bool SearchMenuOpen { get; set; }
+        public string LastSearchQuery { get; set; } = string.Empty;
         public PlaybackState State { get; set; }
         public string Error { get; set; } = string.Empty;
         public List<MusicTrackConfig> SearchResults { get; } = [];
+        public HashSet<string> FavoriteTrackKeys { get; } = new(StringComparer.Ordinal);
         public MusicTrackConfig? PendingTrack { get; set; }
         public MusicTrackConfig? ActiveTrack { get; set; }
         public DateTimeOffset NextSearchAllowedAt { get; set; }
@@ -1272,12 +1447,16 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
         public string? LastProgressClass { get; set; }
         public string? LastVolumeClass { get; set; }
         public string? LastStateClass { get; set; }
+        public string? LastSearchItemsClass { get; set; }
+        public string? LastSearchSelectionClass { get; set; }
 
         public void ResetRenderedClasses()
         {
             LastProgressClass = null;
             LastVolumeClass = null;
             LastStateClass = null;
+            LastSearchItemsClass = null;
+            LastSearchSelectionClass = null;
         }
     }
 }

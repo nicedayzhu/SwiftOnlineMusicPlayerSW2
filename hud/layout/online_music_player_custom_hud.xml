@@ -4,104 +4,157 @@
   </styles>
 
   <Panel class="MusicHudRoot" hittest="false">
-    <Panel id="music_dialog" class="MusicPlayerCard MusicHudHidden MusicHudIdle Volume3 Progress0" hittest="true">
-      <Panel class="MusicHeader" hittest="false">
-        <Panel class="AlbumArt" hittest="false">
-          <Image
-            class="AlbumNoteIcon"
-            hittest="false"
-            src="s2r://panorama/images/custom_game/music_player/music_note.vtex_c"
-            texturewidth="64"
-            textureheight="64" />
-          <Panel class="Spectrum" hittest="false">
-            <Panel class="SpectrumBars" hittest="false">
-              <Panel class="SpectrumBar SpectrumBar1" hittest="false" />
-              <Panel class="SpectrumBar SpectrumBar2" hittest="false" />
-              <Panel class="SpectrumBar SpectrumBar3" hittest="false" />
-              <Panel class="SpectrumBar SpectrumBar4" hittest="false" />
-              <Panel class="SpectrumBar SpectrumBar5" hittest="false" />
+    <Panel id="music_dialog" class="MusicPlayerPresenter MusicHudHidden MusicHudIdle Volume3 Progress0 SearchItems0 SearchSelection0" hittest="true">
+      <!-- Web reference: .card -->
+      <Panel class="PlayerSurface" hittest="true">
+        <!-- Web reference: .top -->
+        <Panel class="MusicHeader" hittest="false">
+          <!-- Web reference: .pfp > .playing -->
+          <Panel class="AlbumArt" hittest="false">
+            <Image class="AlbumNoteIcon" hittest="false" src="s2r://panorama/images/custom_game/music_player/music_note.vtex" texturewidth="64" textureheight="64" />
+            <Panel class="Spectrum" hittest="false">
+              <Panel class="SpectrumBars" hittest="false">
+                <Panel class="SpectrumBar SpectrumBar1" hittest="false" />
+                <Panel class="SpectrumBar SpectrumBar2" hittest="false" />
+                <Panel class="SpectrumBar SpectrumBar3" hittest="false" />
+                <Panel class="SpectrumBar SpectrumBar4" hittest="false" />
+                <Panel class="SpectrumBar SpectrumBar5" hittest="false" />
+              </Panel>
             </Panel>
           </Panel>
+
+          <!-- Web reference: .texts -->
+          <Panel class="TrackDetails" hittest="false">
+            <Label class="TrackTitle" text="{s:track-title}" hittest="false" />
+            <Label class="ArtistName" text="{s:artist-name}" hittest="false" />
+          </Panel>
+
+          <Button id="music_player_close" class="CloseButton">
+            <Image class="CloseIcon" hittest="false" src="s2r://panorama/images/custom_game/music_player/close.vtex" texturewidth="64" textureheight="64" />
+          </Button>
         </Panel>
 
-        <Panel class="TrackDetails" hittest="false">
-          <Label class="TrackTitle" text="{s:track-title}" hittest="false" />
-          <Label class="ArtistName" text="{s:artist-name}" hittest="false" />
-          <Label class="PlayerStatus" text="{s:status}" hittest="false" />
+        <!-- Web reference: .controls -->
+        <Panel class="ControlDeck" hittest="true">
+          <Panel class="VolumeCluster" hittest="true">
+            <Button id="music_player_volume_down" class="ControlButton VolumeIconButton">
+              <Image class="ControlIcon" hittest="false" src="s2r://panorama/images/custom_game/music_player/volume_up.vtex" texturewidth="64" textureheight="64" />
+            </Button>
+            <Button id="music_player_volume_up" class="VolumeSliderButton">
+              <Panel class="VolumeSlider" hittest="false">
+                <Panel class="VolumeSliderFill" hittest="false" />
+                <Panel class="VolumeSliderHandle" hittest="false" />
+              </Panel>
+            </Button>
+          </Panel>
+
+          <Panel class="Transport" hittest="true">
+            <Button id="music_player_prev" class="ControlButton TransportButton">
+              <Image class="ControlIcon" hittest="false" src="s2r://panorama/images/custom_game/music_player/previous.vtex" texturewidth="64" textureheight="64" />
+            </Button>
+            <Button id="music_player_play_pause" class="ControlButton TransportButton PlayPauseButton">
+              <Image class="ControlIcon PlayIcon" hittest="false" src="s2r://panorama/images/custom_game/music_player/play.vtex" texturewidth="64" textureheight="64" />
+              <Image class="ControlIcon PauseIcon" hittest="false" src="s2r://panorama/images/custom_game/music_player/pause.vtex" texturewidth="64" textureheight="64" />
+              <Label class="WaitLabel" text="{s:play-action}" hittest="false" />
+            </Button>
+            <Button id="music_player_next" class="ControlButton TransportButton">
+              <Image class="ControlIcon" hittest="false" src="s2r://panorama/images/custom_game/music_player/next.vtex" texturewidth="64" textureheight="64" />
+            </Button>
+          </Panel>
+
+          <Button id="music_player_favorite" class="ControlButton FavoriteButton">
+            <Image class="HeartIcon" hittest="false" src="s2r://panorama/images/custom_game/music_player/heart.vtex" texturewidth="64" textureheight="64" />
+          </Button>
         </Panel>
 
-        <Button id="music_player_close" class="CloseButton">
-          <Image
-            class="CloseIcon"
-            hittest="false"
-            src="s2r://panorama/images/custom_game/music_player/close.vtex_c"
-            texturewidth="64"
-            textureheight="64" />
-        </Button>
+        <!-- Web reference: .song-time -->
+        <Panel class="TimelineRow" hittest="false">
+          <Label class="TimeBadge CurrentTime" text="{s:current-time}" hittest="false" />
+          <Panel class="ProgressTrack" hittest="false">
+            <Panel class="ProgressFill" hittest="false" />
+          </Panel>
+          <Label class="TimeBadge Duration" text="{s:duration}" hittest="false" />
+        </Panel>
       </Panel>
 
-      <Panel class="TimeInfo" hittest="false">
-        <Label class="CurrentTime" text="{s:current-time}" hittest="false" />
-        <Label class="Duration" text="{s:duration}" hittest="false" />
-      </Panel>
+      <!-- Search stays visually separate so the player card always keeps the reference proportions. -->
+      <Button id="music_player_search_toggle" class="SearchToggleButton">
+        <Panel class="ResultsGlyph" hittest="false">
+          <Panel class="ResultsGlyphLine ResultsGlyphLine1" hittest="false" />
+          <Panel class="ResultsGlyphLine ResultsGlyphLine2" hittest="false" />
+          <Panel class="ResultsGlyphLine ResultsGlyphLine3" hittest="false" />
+        </Panel>
+        <Label class="SearchToggleTitle" text="{s:results-label}" hittest="false" />
+        <Label class="SearchToggleHint" text="{s:results-hint}" hittest="false" />
+        <Label class="SearchToggleChevron" text="{s:results-chevron}" hittest="false" />
+      </Button>
 
-      <Panel class="ProgressTrack" hittest="false">
-        <Panel class="ProgressFill" hittest="false" />
-        <Panel class="ProgressHandle" hittest="false" />
-      </Panel>
-
-      <Panel class="ControlDeck" hittest="true">
-        <Button id="music_player_volume_down" class="DeckButton VolumeButton">
-          <Label text="−" hittest="false" />
-        </Button>
-        <Button id="music_player_prev" class="DeckButton SkipButton">
-          <Image
-            class="ControlIcon"
-            hittest="false"
-            src="s2r://panorama/images/custom_game/music_player/previous.vtex_c"
-            texturewidth="64"
-            textureheight="64" />
-        </Button>
-        <Button id="music_player_play_pause" class="DeckButton PlayPauseButton">
-          <Image
-            class="ControlIcon PlayIcon"
-            hittest="false"
-            src="s2r://panorama/images/custom_game/music_player/play.vtex_c"
-            texturewidth="64"
-            textureheight="64" />
-          <Image
-            class="ControlIcon PauseIcon"
-            hittest="false"
-            src="s2r://panorama/images/custom_game/music_player/pause.vtex_c"
-            texturewidth="64"
-            textureheight="64" />
-          <Label class="WaitLabel" text="{s:play-action}" hittest="false" />
-        </Button>
-        <Button id="music_player_next" class="DeckButton SkipButton">
-          <Image
-            class="ControlIcon"
-            hittest="false"
-            src="s2r://panorama/images/custom_game/music_player/next.vtex_c"
-            texturewidth="64"
-            textureheight="64" />
-        </Button>
-        <Button id="music_player_volume_up" class="DeckButton VolumeButton">
-          <Label text="+" hittest="false" />
-        </Button>
-      </Panel>
-
-      <Panel class="FooterRow" hittest="false">
-        <Label class="SourceName" text="{s:source-name}" hittest="false" />
-        <Panel class="VolumeReadout" hittest="false">
-          <Label class="VolumeText" text="{s:volume-text}" hittest="false" />
-          <Panel class="VolumeDots" hittest="false">
-            <Panel class="VolumeDot VolumeDot1" hittest="false" />
-            <Panel class="VolumeDot VolumeDot2" hittest="false" />
-            <Panel class="VolumeDot VolumeDot3" hittest="false" />
-            <Panel class="VolumeDot VolumeDot4" hittest="false" />
-            <Panel class="VolumeDot VolumeDot5" hittest="false" />
+      <Panel class="SearchDrawer" hittest="true">
+        <Panel class="SearchDrawerHeader" hittest="true">
+          <Panel class="SearchDrawerTitle" hittest="false">
+            <Label class="SearchKicker" text="{s:search-heading}" hittest="false" />
+            <Label class="SearchQuery" text="{s:search-query}" hittest="false" />
+          </Panel>
+          <Panel class="SearchPager" hittest="true">
+            <Button id="music_player_results_prev" class="SearchPageButton">
+              <Image class="SearchPageIcon" hittest="false" src="s2r://panorama/images/custom_game/music_player/previous.vtex" texturewidth="64" textureheight="64" />
+            </Button>
+            <Label class="SearchPageLabel" text="{s:search-page}" hittest="false" />
+            <Button id="music_player_results_next" class="SearchPageButton">
+              <Image class="SearchPageIcon" hittest="false" src="s2r://panorama/images/custom_game/music_player/next.vtex" texturewidth="64" textureheight="64" />
+            </Button>
           </Panel>
         </Panel>
+
+        <Panel class="SearchResultList" hittest="true">
+          <Button id="music_player_result_1" class="SearchResult SearchResult1">
+            <Label class="SearchResultIndex" text="{s:search-result-1-index}" hittest="false" />
+            <Panel class="SearchResultCopy" hittest="false">
+              <Label class="SearchResultTitle" text="{s:search-result-1-title}" hittest="false" />
+              <Label class="SearchResultMeta" text="{s:search-result-1-meta}" hittest="false" />
+            </Panel>
+            <Image class="SearchResultPlay" hittest="false" src="s2r://panorama/images/custom_game/music_player/play.vtex" texturewidth="64" textureheight="64" />
+          </Button>
+          <Button id="music_player_result_2" class="SearchResult SearchResult2">
+            <Label class="SearchResultIndex" text="{s:search-result-2-index}" hittest="false" />
+            <Panel class="SearchResultCopy" hittest="false">
+              <Label class="SearchResultTitle" text="{s:search-result-2-title}" hittest="false" />
+              <Label class="SearchResultMeta" text="{s:search-result-2-meta}" hittest="false" />
+            </Panel>
+            <Image class="SearchResultPlay" hittest="false" src="s2r://panorama/images/custom_game/music_player/play.vtex" texturewidth="64" textureheight="64" />
+          </Button>
+          <Button id="music_player_result_3" class="SearchResult SearchResult3">
+            <Label class="SearchResultIndex" text="{s:search-result-3-index}" hittest="false" />
+            <Panel class="SearchResultCopy" hittest="false">
+              <Label class="SearchResultTitle" text="{s:search-result-3-title}" hittest="false" />
+              <Label class="SearchResultMeta" text="{s:search-result-3-meta}" hittest="false" />
+            </Panel>
+            <Image class="SearchResultPlay" hittest="false" src="s2r://panorama/images/custom_game/music_player/play.vtex" texturewidth="64" textureheight="64" />
+          </Button>
+          <Button id="music_player_result_4" class="SearchResult SearchResult4">
+            <Label class="SearchResultIndex" text="{s:search-result-4-index}" hittest="false" />
+            <Panel class="SearchResultCopy" hittest="false">
+              <Label class="SearchResultTitle" text="{s:search-result-4-title}" hittest="false" />
+              <Label class="SearchResultMeta" text="{s:search-result-4-meta}" hittest="false" />
+            </Panel>
+            <Image class="SearchResultPlay" hittest="false" src="s2r://panorama/images/custom_game/music_player/play.vtex" texturewidth="64" textureheight="64" />
+          </Button>
+          <Button id="music_player_result_5" class="SearchResult SearchResult5">
+            <Label class="SearchResultIndex" text="{s:search-result-5-index}" hittest="false" />
+            <Panel class="SearchResultCopy" hittest="false">
+              <Label class="SearchResultTitle" text="{s:search-result-5-title}" hittest="false" />
+              <Label class="SearchResultMeta" text="{s:search-result-5-meta}" hittest="false" />
+            </Panel>
+            <Image class="SearchResultPlay" hittest="false" src="s2r://panorama/images/custom_game/music_player/play.vtex" texturewidth="64" textureheight="64" />
+          </Button>
+
+          <Panel class="SearchEmpty" hittest="false">
+            <Label class="SearchEmptyTitle" text="{s:search-empty-title}" hittest="false" />
+            <Label class="SearchEmptyHint" text="{s:search-empty-hint}" hittest="false" />
+          </Panel>
+        </Panel>
+
+        <Label class="SearchDrawerHint" text="{s:search-drawer-hint}" hittest="false" />
       </Panel>
     </Panel>
   </Panel>
