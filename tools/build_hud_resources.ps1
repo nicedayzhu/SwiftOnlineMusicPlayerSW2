@@ -17,6 +17,7 @@ $iconNames = @("close", "music_note", "next", "pause", "play", "previous", "volu
 $layoutIconNames = @("close", "music_note", "next", "pause", "play", "previous", "volume_up", "heart")
 $pluginPath = Join-Path $projectRoot "src\SwiftOnlineMusicPlayerPlugin.cs"
 $configPath = Join-Path $projectRoot "src\MusicPlayerConfig.cs"
+$lyricsProviderPath = Join-Path $projectRoot "src\MusicLyricsProvider.cs"
 $bridgePath = Join-Path $projectRoot "src\CustomHudNative.cs"
 $gameDataPath = Join-Path $projectRoot "resources\gamedata\signatures.jsonc"
 $distRoot = Join-Path $projectRoot "dist"
@@ -132,7 +133,7 @@ function Write-IconVtex {
 }
 
 function Test-HudSources {
-    foreach ($path in @($layoutPath, $stylePath, $pluginPath, $configPath, $bridgePath, $gameDataPath)) {
+    foreach ($path in @($layoutPath, $stylePath, $pluginPath, $configPath, $lyricsProviderPath, $bridgePath, $gameDataPath)) {
         Assert-FileExists -Path $path -Message "Required source is missing: $path"
     }
     foreach ($iconName in $iconNames) {
@@ -171,6 +172,9 @@ function Test-HudSources {
     }
     if (-not $layout.SelectSingleNode("//Panel[@id='music_dialog']")) {
         throw "Custom HUD layout is missing #music_dialog."
+    }
+    if (-not $layout.SelectSingleNode("//Panel[@id='music_lyrics']")) {
+        throw "Custom HUD layout is missing #music_lyrics."
     }
     foreach ($xpath in @(
         "//Panel[contains(concat(' ', normalize-space(@class), ' '), ' PlayerSurface ')]/Panel[contains(concat(' ', normalize-space(@class), ' '), ' MusicHeader ')]",

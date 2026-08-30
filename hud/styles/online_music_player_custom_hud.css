@@ -4,6 +4,73 @@
     height: 100%;
 }
 
+/* Synchronized lyric layer. It stays independent from the player card and never captures input. */
+.LyricsOverlay
+{
+    visibility: collapse;
+    width: 720px;
+    height: 72px;
+    horizontal-align: center;
+    vertical-align: bottom;
+    margin-bottom: 142px;
+    flow-children: down;
+    opacity: 0;
+    transform: translateY(6px);
+    transition-property: opacity, transform;
+    transition-duration: 0.16s;
+    transition-timing-function: ease-out;
+}
+
+.LyricsOverlay.MusicLyricsVisible
+{
+    visibility: visible;
+    opacity: 1;
+    transform: translateY(0px);
+}
+
+.LyricsOverlay.MusicLyricsPaused
+{
+    opacity: 0.62;
+}
+
+.LyricsAccent
+{
+    width: 34px;
+    height: 2px;
+    horizontal-align: center;
+    margin-bottom: 5px;
+    background-color: #1db954;
+    box-shadow: #000000aa 0px 1px 3px 0px;
+}
+
+.LyricsCurrent
+{
+    width: 100%;
+    height: 34px;
+    font-family: Stratum2, 'Arial Unicode MS';
+    font-size: 25px;
+    font-weight: bold;
+    color: #ffffff;
+    text-align: center;
+    text-shadow: 0px 2px 4px 2.0 #000000f5;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.LyricsNext
+{
+    width: 100%;
+    height: 23px;
+    font-family: Stratum2, 'Arial Unicode MS';
+    font-size: 16px;
+    font-weight: medium;
+    color: #ffffff99;
+    text-align: center;
+    text-shadow: 0px 1px 3px 2.0 #000000ee;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 /* Presenter owns expansion only. The player surface below remains a compact 250px card. */
 .MusicPlayerPresenter
 {

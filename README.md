@@ -12,9 +12,12 @@ Quick commands:
 - `!music_library` — return to the administrator-configured static library.
 - `!music_close` — close the UI while playback continues.
 - `!music_stop` — stop/reset the player's private channel.
+- `!music_lyrics [on|off]` — toggle synchronized lyrics for the player; omitting the argument toggles the current setting.
 - `!music_status` — show dependency and session status.
 - The heart button toggles a per-player favorite marker for the current connection; it is intentionally not persisted as a server library edit.
 - Search results are echoed to chat and the first result plays automatically by default. Set `MusicPlayer.AutoPlayFirstSearchResult` to `false` to require an explicit HUD/command selection.
+- Kuwo and Netease search tracks load synchronized lyrics into a non-interactive two-line overlay. Lyrics follow pause/resume, continue when the player card is closed, and clear on stop, track change, disconnect, or unload.
+- The lyrics layer adopts HudText's fixed-label plus per-player dialog-variable/class mechanism, but it is compiled into this project's existing VPK. No HudText plugin or additional addon is required.
 - Opening the player keeps aiming active. Press and release right-click once to enter pointer interaction mode; click the footer action to return to aiming while the player remains visible, or use X to close it.
 
 Important constraints:

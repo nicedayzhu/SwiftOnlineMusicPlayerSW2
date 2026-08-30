@@ -7,7 +7,7 @@
 项目把界面与音频明确分层：
 
 1. 客户端 VPK 提供已编译的 VXML/VCSS 音乐播放器。
-2. 服务器创建 `custom_hud_layout`，逐玩家写入曲名、歌手、时间、状态、进度和音量 CSS 类，并接收静态 Button ID。
+2. 服务器创建一个 `custom_hud_layout`，逐玩家写入曲名、歌手、时间、状态、进度、歌词和音量 CSS 类，并接收静态 Button ID。
 3. [SwiftlyS2-Plugins/Audio](https://github.com/SwiftlyS2-Plugins/Audio) 从直接音频 URL 解码音源，通过 CS2 VoIP 音频通道逐玩家投递。
 4. 每位玩家使用独立 Audio channel，因此暂停、切歌和音量不会影响其他玩家。
 
@@ -22,9 +22,13 @@
 - 逐玩家 0%–100% 六档音量。
 - 爱心按钮可标记当前连接期间的逐玩家收藏状态；它不会伪装成已持久化的服务器曲库修改。
 - 曲名、歌手、当前时间、总时长、加载/暂停/错误状态。
+- 酷我/网易云逐行同步歌词：复用 HudText 的“固定 Label + 逐玩家 dialog variable/class”机制，但直接并入本项目现有 VXML/VCSS 和 VPK，不安装 HudText 插件，也不要求额外 addon。
+- 当前歌词与下一句以不拦截输入的屏幕底部双行层显示；歌词随暂停/恢复保持同步，关闭播放器卡片后仍随后台音乐继续，停止、切歌、断线和卸载时立即清理。
+- `!music_lyrics [on|off]` 允许每位玩家独立显示或隐藏歌词；默认行为和最多 ±5 秒的校时偏移可由服务器配置。
 - 20 段进度显示；`DurationSeconds = 0` 时显示 LIVE 动画。
 - 配置文件热重载；URL 只允许 HTTP/HTTPS，最多 64 首。
 - 搜索请求带有 3–30 秒超时、0–60 秒冷却、512 KiB 响应上限、禁用 HTTP 重定向、公网 DNS 检查和音频主机后缀白名单。
+- 歌词请求同样禁用重定向，带有独立超时、512 KiB 响应上限和公网 DNS 检查；歌词不可用不会阻断音频播放。
 - 相同 URL 的解码结果在服务器内缓存并由玩家共享，播放游标仍然逐玩家独立。
 - 玩家断线、插件卸载、HUD 关闭时的音频与鼠标捕获清理。
 - Audio 插件缺失、URL 解码失败、GameData 失效时均显示明确状态，不会假装播放成功。
@@ -49,14 +53,26 @@ Audio 插件本体必须单独下载并作为 SwiftlyS2 插件安装；本项目
     "DefaultVolume": 0.65,
     "AutoAdvance": true,
     "AutoPlayFirstSearchResult": true,
+    "Lyrics": {
+      "Enabled": true,
+      "VisibleByDefault": true,
+      "KuwoEndpoint": "https://www.kuwo.cn/openapi/v1/www/lyric/getlyric",
+      "NeteaseEndpoint": "https://api.qijieya.cn/meting/",
+      "TimeoutSeconds": 8,
+      "TimingOffsetSeconds": 0.0
+    },
     "MusicSquareSearch": {
       "Enabled": true,
+      "KuwoEnabled": true,
+      "KuwoSearchEndpoint": "https://oiapi.net/api/Kuwo",
+      "KuwoQualityIndex": 6,
       "SearchEndpoint": "https://api.qijieya.cn/meting/",
       "ResultLimit": 5,
       "TimeoutSeconds": 10,
       "CooldownSeconds": 5,
       "AllowedAudioHostSuffixes": [
         "api.qijieya.cn",
+        "kuwo.cn",
         "music.126.net",
         "music.163.com"
       ]
@@ -79,7 +95,9 @@ Audio 插件本体必须单独下载并作为 SwiftlyS2 插件安装；本项目
 - YouTube、Spotify、网易云等网页链接不是音频流地址，不能直接填入；如需这类来源，应在服务器外部合法解析/转码成受控的直链或自建流媒体端点。
 - `DurationSeconds` 用于 HUD 计时和自动下一首。直播流或未知时长填 `0`。
 - `AutoPlayFirstSearchResult` 默认是 `true`：搜索成功后保留候选菜单并自动加载第 1 条；设为 `false` 后只展示结果，等待玩家点击或输入 `!music_pick`。
-- `MusicSquareSearch` 是可选的服务器侧搜索适配器。默认仅启用 MusicSquare 当前使用的网易云 qijieya Meting 路径；管理员可关闭或换成协议兼容的自建端点。
+- `Lyrics.Enabled` 控制服务器歌词功能，`VisibleByDefault` 控制新会话是否默认显示。`TimingOffsetSeconds` 为正时歌词提前、为负时延后，范围会限制在 `-5` 到 `5` 秒。
+- 在线搜索得到的酷我和网易云曲目会自动获取同步歌词；没有受支持 `Source`/`SourceId` 的静态曲库曲目不会发起歌词请求。
+- `MusicSquareSearch` 是可选的服务器侧搜索适配器。默认先查询酷我 OIAPI，无法得到可播放结果时回退到网易云 qijieya Meting；管理员可分别关闭酷我或换成协议兼容的自建端点。
 - `AllowedAudioHostSuffixes` 应保持尽量小。留空会接受任意公网 HTTP(S) 音频主机，不建议在生产服这样配置。
 - 只使用你有权公开播放的音频，并遵守所在地区的版权、表演权和平台条款。
 
@@ -93,19 +111,22 @@ Audio 插件本体必须单独下载并作为 SwiftlyS2 插件安装；本项目
 - 暂不接入 JOOX：MusicSquare 前端包含第三方 token，本项目不会复制或分发该凭据。
 - MusicSquare 的 Apache-2.0 许可证只覆盖它的源码，不授予任何歌曲、平台目录或公开演播权。其在线演示也明确声明音乐版权归平台和原作者所有。
 
-更完整的接口、风险和扩展分析见 [`docs/MUSICSQUARE_ANALYSIS.md`](docs/MUSICSQUARE_ANALYSIS.md)。
+更完整的接口、风险和扩展分析见 [`docs/MUSICSQUARE_ANALYSIS.md`](docs/MUSICSQUARE_ANALYSIS.md)；HudText 机制的采用范围、歌词数据流和生命周期见 [`docs/HUDTEXT_LYRICS_ANALYSIS.md`](docs/HUDTEXT_LYRICS_ANALYSIS.md)。
 
 ## 命令
 
 - `!music`：打开/重新打开播放器。
 - `!music_close`：关闭播放器 UI，不停止后台音乐。
 - `!music_stop`：停止并重置自己的音乐频道。
+- `!music_lyrics [on|off]`：切换自己屏幕上的同步歌词；省略参数时反转当前状态。
 - `!music_status`：显示 Audio、HUD、曲库和个人会话状态。
 - `!music_search <歌名或歌手>`：搜索在线候选并展开 HUD 曲目菜单；默认自动播放第 1 条，也可点击任意结果切换。
 - `!music_pick <1-N>`：播放最近一次搜索的第 N 条结果。
 - `!music_library`：退出搜索结果集并返回静态曲库。
 
 播放器打开时默认不捕获鼠标，玩家仍可转动视角。按下并松开一次鼠标右键后进入指针交互态；点击播放器底部的返回瞄准操作可退出交互态并恢复视角，播放器保持显示，点击 X 则关闭播放器。
+
+歌词资源已经编译进 `swift_online_music_player.vpk`。实现只借鉴 [HudText](https://github.com/T3Marius/HudText) 的 Custom HUD 更新机制，没有引用其插件 DLL、共享接口或独立 addon；客户端仍只需挂载本项目原有的一个 VPK。
 
 ## 构建插件
 
@@ -185,3 +206,4 @@ unique-pattern validation: 2026-08-29
 - [Uiverse music player reference](https://uiverse.io/bociKond/serious-robin-34)
 - [MusicSquare source](https://github.com/CharlesPikachu/musicsquare)
 - [MusicSquare live demo](https://charlespikachu.github.io/musicsquare/)
+- [HudText](https://github.com/T3Marius/HudText)

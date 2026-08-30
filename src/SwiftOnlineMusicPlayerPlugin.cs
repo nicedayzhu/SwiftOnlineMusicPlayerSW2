@@ -15,10 +15,10 @@ namespace SwiftOnlineMusicPlayerSW2;
 
 [PluginMetadata(
     Id = "SwiftOnlineMusicPlayerSW2",
-    Version = "0.3.6",
+    Version = "0.4.0",
     Name = "Swift Online Music Player",
     Author = "SkinTools",
-    Description = "Per-player online music playback and MusicSquare-inspired search with a CCSCustomHudLayout controller.",
+    Description = "Per-player online music playback, synchronized lyrics, and MusicSquare-inspired search with a CCSCustomHudLayout controller.",
     MinimumAPIVersion = "1.2.0"
 )]
 public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin(core)
@@ -27,6 +27,7 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
     private const string TargetName = "swift_online_music_player_custom_hud";
     private const string LayoutResource = "panorama/layout/custom_game/online_music_player_custom_hud.xml";
     private const string DialogPanelId = "music_dialog";
+    private const string LyricsPanelId = "music_lyrics";
     private const string HiddenClass = "MusicHudHidden";
     private const string InteractiveClass = "MusicHudInteractive";
     private const string RuntimeConfigFileName = "config.jsonc";
@@ -34,6 +35,7 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
     private const int ProgressStepCount = 20;
     private const int VolumeStepCount = 5;
     private const int SearchRowsPerPage = 5;
+    private const int MaxLyricsCacheEntries = 128;
     private static readonly string[] TrackVariantMarkers =
     [
         "live", "remix", "demo", "cover", "伴奏", "翻唱", "柔情版", "3d", "环绕",
@@ -48,7 +50,10 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
     private readonly HashSet<int> _mouse2CapturePendingSlots = [];
     private readonly ConcurrentDictionary<string, Lazy<Task<IAudioSource>>> _sourceCache =
         new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, Lazy<Task<IReadOnlyList<LyricLine>>>> _lyricsCache =
+        new(StringComparer.OrdinalIgnoreCase);
     private readonly MusicSquareSearchProvider _searchProvider = new();
+    private readonly MusicLyricsProvider _lyricsProvider = new();
 
     private MusicPlayerConfig _config = MusicPlayerConfig.Normalize(null);
     private IAudioApi? _audioApi;
@@ -56,6 +61,7 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
     private CustomHudNativeBridge? _nativeHud;
     private IDisposable? _configReloadSubscription;
     private CancellationTokenSource? _hudRefreshTimer;
+    private CancellationTokenSource? _lyricsRefreshTimer;
     private bool _unloading;
 
     private ILogger<SwiftOnlineMusicPlayerPlugin> Logger =>
@@ -84,6 +90,7 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
         Core.Event.OnClientDisconnected += OnClientDisconnected;
         Core.GameHooks.Controller.ProcessUsercmds.Pre += OnProcessUsercmdsPre;
         _hudRefreshTimer = Core.Scheduler.RepeatBySeconds(1f, UpdateOpenHuds);
+        _lyricsRefreshTimer = Core.Scheduler.RepeatBySeconds(0.20f, UpdateLyrics);
 
         Logger.LogInformation(
             "[SwiftOnlineMusicPlayer] Loaded (hotReload={HotReload}, tracks={TrackCount}, search={SearchEnabled}). Players can use !music.",
@@ -107,6 +114,7 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
                 session.StartedAt = null;
                 session.PendingTrack = null;
                 session.ActiveTrack = null;
+                ClearLyrics(session, hide: true);
                 session.Channel = _audioApi.UseChannel(ChannelId(session.PlayerSlot));
                 session.Channel.SetVolume(session.PlayerSlot, VolumeFromStep(session.VolumeStep));
             }
@@ -139,6 +147,9 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
         _hudRefreshTimer?.Cancel();
         _hudRefreshTimer?.Dispose();
         _hudRefreshTimer = null;
+        _lyricsRefreshTimer?.Cancel();
+        _lyricsRefreshTimer?.Dispose();
+        _lyricsRefreshTimer = null;
         Core.Event.OnClientDisconnected -= OnClientDisconnected;
         Core.GameHooks.Controller.ProcessUsercmds.Pre -= OnProcessUsercmdsPre;
 
@@ -152,7 +163,9 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
         _nativeHud = null;
         _audioApi = null;
         _sourceCache.Clear();
+        _lyricsCache.Clear();
         _searchProvider.Dispose();
+        _lyricsProvider.Dispose();
         Logger.LogInformation("[SwiftOnlineMusicPlayer] Unloaded.");
     }
 
@@ -227,6 +240,66 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
         context.Reply("[Music] Playback stopped and reset.");
     }
 
+    [Command("music_lyrics", registerRaw: true, helpText: "Toggle synchronized lyrics for your private music channel.")]
+    public void LyricsCommand(ICommandContext context)
+    {
+        var player = context.Sender;
+        if (player?.IsValid != true || player.IsFakeClient)
+        {
+            context.Reply("[Music] This command must be used by a connected player.");
+            return;
+        }
+
+        var session = GetOrCreateSession(player.Slot);
+        var requested = context.Args.Length == 0
+            ? !session.LyricsEnabled
+            : context.Args[0].Equals("on", StringComparison.OrdinalIgnoreCase) ||
+              context.Args[0].Equals("1", StringComparison.OrdinalIgnoreCase) ||
+              context.Args[0].Equals("true", StringComparison.OrdinalIgnoreCase)
+                ? true
+                : context.Args[0].Equals("off", StringComparison.OrdinalIgnoreCase) ||
+                  context.Args[0].Equals("0", StringComparison.OrdinalIgnoreCase) ||
+                  context.Args[0].Equals("false", StringComparison.OrdinalIgnoreCase)
+                    ? false
+                    : (bool?)null;
+        if (requested is null)
+        {
+            context.Reply("[Music] Usage: !music_lyrics [on|off].");
+            return;
+        }
+
+        session.LyricsEnabled = requested.Value;
+        if (!session.LyricsEnabled)
+        {
+            ClearLyrics(session, hide: true);
+            context.Reply("[Music] Synchronized lyrics disabled for your channel.");
+            return;
+        }
+
+        if (!_config.Lyrics.Enabled)
+        {
+            session.LyricsEnabled = false;
+            context.Reply("[Music] Synchronized lyrics are disabled by the server administrator.");
+            return;
+        }
+
+        if (_nativeHud is not null)
+        {
+            EnsureLayout();
+        }
+
+        if (session.ActiveTrack is { } activeTrack)
+        {
+            BeginLyricsLoad(session, session.Generation, activeTrack);
+        }
+        else
+        {
+            RenderLyrics(session, force: true);
+        }
+
+        context.Reply("[Music] Synchronized lyrics enabled. Use !music_lyrics off to hide them.");
+    }
+
     [Command("music_status", registerRaw: true, helpText: "Show music player dependency and session status.")]
     public void StatusCommand(ICommandContext context)
     {
@@ -234,7 +307,7 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
             ? session.State.ToString().ToLowerInvariant()
             : "none";
         context.Reply(
-            $"[Music] audio={(_audioApi is null ? "offline" : "ready")}, hud={(_nativeHud is null ? "offline" : "ready")}, search={(_config.MusicSquareSearch.Enabled ? "kuwo-primary+netease-fallback" : "disabled")}, tracks={_config.Tracks.Count}, your-state={state}.");
+            $"[Music] audio={(_audioApi is null ? "offline" : "ready")}, hud={(_nativeHud is null ? "offline" : "ready")}, search={(_config.MusicSquareSearch.Enabled ? "kuwo-primary+netease-fallback" : "disabled")}, lyrics={(_config.Lyrics.Enabled ? "ready" : "disabled")}, tracks={_config.Tracks.Count}, your-state={state}.");
     }
 
     [Command("music_search", registerRaw: true, helpText: "Search the MusicSquare-compatible providers and open the clickable result list.")]
@@ -295,6 +368,7 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
         session.ElapsedBeforeResume = TimeSpan.Zero;
         session.StartedAt = null;
         session.Channel?.Stop(session.PlayerSlot);
+        ClearLyrics(session, hide: true);
 
         if (_nativeHud is not null)
         {
@@ -535,20 +609,23 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
                     ? 0
                     : Math.Clamp(session.TrackIndex, 0, normalized.Tracks.Count - 1);
                 session.VolumeStep = VolumeToStep(normalized.DefaultVolume);
+                session.LyricsEnabled = normalized.Lyrics.VisibleByDefault;
                 session.Channel?.SetVolume(session.PlayerSlot, VolumeFromStep(session.VolumeStep));
             }
 
             _config = normalized;
             _sourceCache.Clear();
+            _lyricsCache.Clear();
             UpdateOpenHuds();
             Logger.LogInformation(
-                "[SwiftOnlineMusicPlayer] Config loaded from {Path}: tracks={TrackCount}, autoAdvance={AutoAdvance}, autoPlayFirstSearchResult={AutoPlayFirstSearchResult}, defaultVolume={DefaultVolume:F2}, musicSquareSearch={SearchEnabled}.",
+                "[SwiftOnlineMusicPlayer] Config loaded from {Path}: tracks={TrackCount}, autoAdvance={AutoAdvance}, autoPlayFirstSearchResult={AutoPlayFirstSearchResult}, defaultVolume={DefaultVolume:F2}, musicSquareSearch={SearchEnabled}, lyrics={LyricsEnabled}.",
                 Core.Configuration.GetConfigPath(RuntimeConfigFileName),
                 normalized.Tracks.Count,
                 normalized.AutoAdvance,
                 normalized.AutoPlayFirstSearchResult,
                 normalized.DefaultVolume,
-                normalized.MusicSquareSearch.Enabled);
+                normalized.MusicSquareSearch.Enabled,
+                normalized.Lyrics.Enabled);
         }
         catch (Exception exception)
         {
@@ -573,6 +650,7 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
         foreach (var session in _sessions.Values)
         {
             session.ResetRenderedClasses();
+            session.ResetRenderedLyrics();
         }
 
         using var keyValues = new CEntityKeyValues();
@@ -602,6 +680,7 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
         SetHudInteraction(playerSlot, enabled: false);
         session.ResetRenderedClasses();
         RenderHud(session, forceClasses: true);
+        RenderLyrics(session, force: true);
     }
 
     private bool CloseHud(int playerSlot)
@@ -736,6 +815,7 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
         var session = new PlayerSession(playerSlot)
         {
             VolumeStep = VolumeToStep(_config.DefaultVolume),
+            LyricsEnabled = _config.Lyrics.VisibleByDefault,
             Channel = _audioApi?.UseChannel(ChannelId(playerSlot))
         };
         session.Channel?.SetVolume(playerSlot, VolumeFromStep(session.VolumeStep));
@@ -999,10 +1079,12 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
         session.PendingTrack = track;
         session.ActiveTrack = null;
         session.Channel!.Stop(session.PlayerSlot);
+        ClearLyrics(session, hide: true);
 
         var generation = session.Generation;
         var api = _audioApi!;
         _ = DecodeAndStartAsync(session.PlayerSlot, generation, track, api);
+        BeginLyricsLoad(session, generation, track);
     }
 
     private async Task DecodeAndStartAsync(
@@ -1072,6 +1154,7 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
             track.Source,
             track.SourceId);
 
+        RenderLyrics(session, force: true);
         if (_openSlots.Contains(playerSlot))
         {
             RenderHud(session, forceClasses: false);
@@ -1094,6 +1177,7 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
         session.StartedAt = null;
         session.PendingTrack = null;
         session.ActiveTrack = null;
+        ClearLyrics(session, hide: true);
         Logger.LogWarning(
             exception,
             "[SwiftOnlineMusicPlayer] Online source decode failed for slot {PlayerSlot}: {Title} / {Artist} [{Source}:{SourceId}].",
@@ -1131,8 +1215,125 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
         }
     }
 
+    private void BeginLyricsLoad(PlayerSession session, int generation, MusicTrackConfig track)
+    {
+        if (!_config.Lyrics.Enabled ||
+            !session.LyricsEnabled ||
+            string.IsNullOrWhiteSpace(track.SourceId) ||
+            (!track.Source.Equals("Kuwo", StringComparison.OrdinalIgnoreCase) &&
+             !track.Source.Equals("Netease", StringComparison.OrdinalIgnoreCase)))
+        {
+            return;
+        }
+
+        if (_lyricsCache.Count >= MaxLyricsCacheEntries)
+        {
+            _lyricsCache.Clear();
+        }
+
+        var cacheKey = LyricsCacheKey(track);
+        var lyricsConfig = _config.Lyrics;
+        var factory = _lyricsCache.GetOrAdd(
+            cacheKey,
+            _ => new Lazy<Task<IReadOnlyList<LyricLine>>>(
+                () => _lyricsProvider.FetchAsync(track, lyricsConfig, CancellationToken.None),
+                LazyThreadSafetyMode.ExecutionAndPublication));
+        _ = LoadLyricsAsync(session.PlayerSlot, generation, track, cacheKey, factory);
+    }
+
+    private async Task LoadLyricsAsync(
+        int playerSlot,
+        int generation,
+        MusicTrackConfig track,
+        string cacheKey,
+        Lazy<Task<IReadOnlyList<LyricLine>>> factory)
+    {
+        try
+        {
+            var lines = await factory.Value.ConfigureAwait(false);
+            if (_unloading)
+            {
+                return;
+            }
+
+            Core.Scheduler.NextWorldUpdate(() =>
+                CompleteLyricsLoad(playerSlot, generation, track, lines));
+        }
+        catch (Exception exception)
+        {
+            _lyricsCache.TryRemove(cacheKey, out _);
+            if (_unloading)
+            {
+                return;
+            }
+
+            Logger.LogDebug(
+                exception,
+                "[SwiftOnlineMusicPlayer] Lyrics unavailable for {Title} / {Artist} [{Source}:{SourceId}].",
+                track.Title,
+                track.Artist,
+                track.Source,
+                track.SourceId);
+        }
+    }
+
+    private void CompleteLyricsLoad(
+        int playerSlot,
+        int generation,
+        MusicTrackConfig track,
+        IReadOnlyList<LyricLine> lines)
+    {
+        if (_unloading ||
+            !_sessions.TryGetValue(playerSlot, out var session) ||
+            session.Generation != generation)
+        {
+            return;
+        }
+
+        var currentTrack = session.ActiveTrack ?? session.PendingTrack;
+        if (currentTrack is null || TrackKey(currentTrack) != TrackKey(track))
+        {
+            return;
+        }
+
+        session.Lyrics.Clear();
+        session.Lyrics.AddRange(lines);
+        session.ResetRenderedLyrics();
+        if (lines.Count > 0)
+        {
+            Logger.LogInformation(
+                "[SwiftOnlineMusicPlayer] Loaded {LineCount} synchronized lyric lines for slot {PlayerSlot}: {Title} [{Source}:{SourceId}].",
+                lines.Count,
+                playerSlot,
+                track.Title,
+                track.Source,
+                track.SourceId);
+        }
+
+        RenderLyrics(session, force: true);
+    }
+
     private void UpdateOpenHuds()
     {
+        foreach (var session in _sessions.Values.ToArray())
+        {
+            var track = session.ActiveTrack;
+            if (session.State == PlaybackState.Playing &&
+                track is { DurationSeconds: > 0 } &&
+                GetElapsed(session).TotalSeconds >= track.DurationSeconds)
+            {
+                if (_config.AutoAdvance &&
+                    (session.SearchResults.Count > 0 || _config.Tracks.Count > 0))
+                {
+                    SelectRelativeTrack(session, 1);
+                }
+                else
+                {
+                    ResetPlayback(session);
+                }
+            }
+        }
+
         if (!TryGetLayoutAddress(out _))
         {
             _openSlots.Clear();
@@ -1150,23 +1351,155 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
                 continue;
             }
 
-            var track = CurrentTrack(session);
-            if (session.State == PlaybackState.Playing &&
-                track is { DurationSeconds: > 0 } &&
-                GetElapsed(session).TotalSeconds >= track.DurationSeconds)
-            {
-                if (_config.AutoAdvance && _config.Tracks.Count > 0)
-                {
-                    SelectRelativeTrack(session, 1);
-                }
-                else
-                {
-                    ResetPlayback(session);
-                }
-            }
-
             RenderHud(session, forceClasses: false);
         }
+    }
+
+    private void UpdateLyrics()
+    {
+        if (!TryGetLayoutAddress(out _) || _nativeHud is null)
+        {
+            return;
+        }
+
+        foreach (var session in _sessions.Values.ToArray())
+        {
+            RenderLyrics(session, force: false);
+        }
+    }
+
+    private void RenderLyrics(PlayerSession session, bool force)
+    {
+        if (!session.LyricsEnabled ||
+            !_config.Lyrics.Enabled ||
+            session.ActiveTrack is null ||
+            session.State is not (PlaybackState.Playing or PlaybackState.Paused) ||
+            session.Lyrics.Count == 0 ||
+            !TryGetLayoutAddress(out var layoutAddress) ||
+            _nativeHud is null)
+        {
+            HideLyrics(session, force);
+            return;
+        }
+
+        var adjustedElapsed = GetElapsed(session) +
+                              TimeSpan.FromSeconds(_config.Lyrics.TimingOffsetSeconds);
+        var lyricIndex = FindLyricIndex(session.Lyrics, adjustedElapsed);
+        if (lyricIndex < 0)
+        {
+            HideLyrics(session, force);
+            return;
+        }
+
+        var paused = session.State == PlaybackState.Paused;
+        if (!force &&
+            session.LyricsVisible &&
+            session.LastLyricIndex == lyricIndex &&
+            session.LastLyricsPaused == paused)
+        {
+            return;
+        }
+
+        var nextLine = lyricIndex + 1 < session.Lyrics.Count
+            ? session.Lyrics[lyricIndex + 1].Text
+            : string.Empty;
+        SetPanelDialogValue(
+            layoutAddress,
+            session.PlayerSlot,
+            LyricsPanelId,
+            "lyric-current",
+            session.Lyrics[lyricIndex].Text);
+        SetPanelDialogValue(
+            layoutAddress,
+            session.PlayerSlot,
+            LyricsPanelId,
+            "lyric-next",
+            nextLine);
+        SetPanelBooleanClass(
+            layoutAddress,
+            session.PlayerSlot,
+            LyricsPanelId,
+            "MusicLyricsPaused",
+            paused);
+        SetPanelBooleanClass(
+            layoutAddress,
+            session.PlayerSlot,
+            LyricsPanelId,
+            "MusicLyricsVisible",
+            true);
+        session.LastLyricIndex = lyricIndex;
+        session.LastLyricsPaused = paused;
+        session.LyricsVisible = true;
+    }
+
+    private void ClearLyrics(PlayerSession session, bool hide)
+    {
+        session.Lyrics.Clear();
+        session.LastLyricIndex = int.MinValue;
+        session.LastLyricsPaused = false;
+        if (hide)
+        {
+            HideLyrics(session, force: false);
+        }
+    }
+
+    private void HideLyrics(PlayerSession session, bool force)
+    {
+        if ((force || session.LyricsVisible) &&
+            TryGetLayoutAddress(out var layoutAddress) &&
+            _nativeHud is not null)
+        {
+            SetPanelBooleanClass(
+                layoutAddress,
+                session.PlayerSlot,
+                LyricsPanelId,
+                "MusicLyricsVisible",
+                false);
+            SetPanelBooleanClass(
+                layoutAddress,
+                session.PlayerSlot,
+                LyricsPanelId,
+                "MusicLyricsPaused",
+                false);
+            SetPanelDialogValue(
+                layoutAddress,
+                session.PlayerSlot,
+                LyricsPanelId,
+                "lyric-current",
+                string.Empty);
+            SetPanelDialogValue(
+                layoutAddress,
+                session.PlayerSlot,
+                LyricsPanelId,
+                "lyric-next",
+                string.Empty);
+        }
+
+        session.LyricsVisible = false;
+        session.LastLyricIndex = -1;
+        session.LastLyricsPaused = false;
+    }
+
+    private static int FindLyricIndex(IReadOnlyList<LyricLine> lines, TimeSpan elapsed)
+    {
+        var low = 0;
+        var high = lines.Count - 1;
+        var result = -1;
+        while (low <= high)
+        {
+            var middle = low + (high - low) / 2;
+            if (lines[middle].Timestamp <= elapsed)
+            {
+                result = middle;
+                low = middle + 1;
+            }
+            else
+            {
+                high = middle - 1;
+            }
+        }
+
+        return result;
     }
 
     private void RenderHud(PlayerSession session, bool forceClasses)
@@ -1395,6 +1728,27 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
     private void SetBooleanClass(nint layoutAddress, int playerSlot, string className, bool enabled) =>
         _nativeHud!.SetHasClassForPlayer(layoutAddress, playerSlot, DialogPanelId, className, enabled);
 
+    private void SetPanelDialogValue(
+        nint layoutAddress,
+        int playerSlot,
+        string panelId,
+        string variableName,
+        string value) =>
+        _nativeHud!.SetDialogVariableStringForPlayer(
+            layoutAddress,
+            playerSlot,
+            panelId,
+            variableName,
+            value);
+
+    private void SetPanelBooleanClass(
+        nint layoutAddress,
+        int playerSlot,
+        string panelId,
+        string className,
+        bool enabled) =>
+        _nativeHud!.SetHasClassForPlayer(layoutAddress, playerSlot, panelId, className, enabled);
+
     private MusicTrackConfig? CurrentTrack(PlayerSession session)
     {
         if (session.PendingTrack is not null)
@@ -1431,6 +1785,9 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
 
     private static string TrackKey(MusicTrackConfig track) =>
         $"{track.Source}\n{track.SourceId}\n{track.Url}";
+
+    private static string LyricsCacheKey(MusicTrackConfig track) =>
+        $"{track.Source.Trim().ToLowerInvariant()}:{track.SourceId.Trim().ToLowerInvariant()}";
 
     private static string FormatTime(TimeSpan time)
     {
@@ -1498,6 +1855,7 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
         session.StartedAt = null;
         session.PendingTrack = null;
         session.ActiveTrack = null;
+        ClearLyrics(session, hide: true);
     }
 
     private void OnClientDisconnected(IOnClientDisconnectedEvent @event) =>
@@ -1610,6 +1968,11 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
         public DateTimeOffset NextSearchAllowedAt { get; set; }
         public TimeSpan ElapsedBeforeResume { get; set; }
         public DateTimeOffset? StartedAt { get; set; }
+        public bool LyricsEnabled { get; set; }
+        public bool LyricsVisible { get; set; }
+        public bool LastLyricsPaused { get; set; }
+        public int LastLyricIndex { get; set; } = int.MinValue;
+        public List<LyricLine> Lyrics { get; } = [];
         public string? LastProgressClass { get; set; }
         public string? LastVolumeClass { get; set; }
         public string? LastStateClass { get; set; }
@@ -1623,6 +1986,13 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
             LastStateClass = null;
             LastSearchItemsClass = null;
             LastSearchSelectionClass = null;
+        }
+
+        public void ResetRenderedLyrics()
+        {
+            LyricsVisible = false;
+            LastLyricsPaused = false;
+            LastLyricIndex = int.MinValue;
         }
     }
 }

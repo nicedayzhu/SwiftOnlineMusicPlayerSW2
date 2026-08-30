@@ -20,7 +20,7 @@
 预期结果：
 
 ```text
-audio=ready, hud=ready, search=kuwo-primary+netease-fallback
+audio=ready, hud=ready, search=kuwo-primary+netease-fallback, lyrics=ready
 ```
 
 首次正常启动后应生成：
@@ -68,7 +68,18 @@ Audio 测试阶段保持 `UseFFMpeg: false`，先使用随插件提供的 `pcmde
 
 搜索结果时长未知，所以 HUD 显示 `LIVE` 属于当前设计，不代表一定是直播流。
 
-## 四、双玩家隔离
+## 四、歌词同步
+
+1. 输入 `!music_search 周杰伦 稻香` 并等待播放；服务器日志应出现 `Loaded ... synchronized lyric lines`。
+2. 屏幕底部中央应显示当前歌词和弱化的下一句；歌词层没有背景按钮、不会捕获鼠标，也不影响瞄准或播放器交互。
+3. 当前行应为清晰白色粗体并带绿色短线，下一行为较小的半透明白字；16:9 与 4:3 下均不应超出画面。
+4. 暂停 5 秒，歌词应停在当前行并整体降亮；继续播放后应从同一时间点恢复，而不是跳过暂停时长。
+5. 点击 X 或输入 `!music_close`，播放器卡片消失但音乐和歌词继续；再次输入 `!music` 后状态仍同步。
+6. 输入 `!music_lyrics off`，歌词应立即消失但音乐不停；输入 `!music_lyrics on` 后应从当前播放时间恢复。无参数 `!music_lyrics` 应反转状态。
+7. 切换搜索结果、输入 `!music_stop`、掉线重连，确认上一首歌词不会残留。静态 SoundHelix 曲目没有支持的来源 ID，因此不显示歌词是预期行为。
+8. 如需校时，把 `Lyrics.TimingOffsetSeconds` 暂时改为 `1.0`；配置重载后重新播放，歌词应提前约 1 秒。测试后恢复为 `0.0`。
+
+## 五、双玩家隔离
 
 若可以打开两个客户端：
 
@@ -77,7 +88,7 @@ Audio 测试阶段保持 `UseFFMpeg: false`，先使用随插件提供的 `pcmde
 3. A 暂停、切歌、关闭 UI，确认 B 不受影响。
 4. B 断线，确认 A 仍播放；服务器日志不应出现遗留 channel 或输入捕获异常。
 
-## 五、画面与清理
+## 六、画面与清理
 
 - 测试 16:9 和 4:3。
 - 输入 `!music` 后确认 HUD 立即出现，但鼠标指针不出现，玩家仍可正常转动视角。
@@ -89,7 +100,7 @@ Audio 测试阶段保持 `UseFFMpeg: false`，先使用随插件提供的 `pcmde
 - 测试插件热重载或服务器重启后再次打开。
 - 退出服务器后确认客户端没有残留 HUD。
 
-## 六、无声时先检查
+## 七、无声时先检查
 
 1. `!music_status` 中 `audio` 是否为 `ready`。
 2. CS2 设置中是否启用了语音，语音音量是否非零；此插件通过逐玩家 VoIP 通道传输音乐。
@@ -97,7 +108,7 @@ Audio 测试阶段保持 `UseFFMpeg: false`，先使用随插件提供的 `pcmde
 4. 先测默认 SoundHelix。若它能播放而搜索歌曲不能播放，问题通常是搜索接口/CDN URL，而不是 Audio 插件。
 5. 若所有 URL 都失败，再检查 Audio 配置和 `pcmdecoder.dll`；不要在未安装 FFmpeg 时启用 `UseFFMpeg`。
 
-## 七、日志采集
+## 八、日志采集
 
 测试后在 PowerShell 运行：
 

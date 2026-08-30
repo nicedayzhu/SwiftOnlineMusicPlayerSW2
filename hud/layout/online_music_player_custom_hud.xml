@@ -4,6 +4,13 @@
   </styles>
 
   <Panel class="MusicHudRoot" hittest="false">
+    <!-- HudText-style fixed labels: the server updates per-player dialog variables and visibility classes. -->
+    <Panel id="music_lyrics" class="LyricsOverlay" hittest="false">
+      <Panel class="LyricsAccent" hittest="false" />
+      <Label class="LyricsCurrent" text="{s:lyric-current}" hittest="false" />
+      <Label class="LyricsNext" text="{s:lyric-next}" hittest="false" />
+    </Panel>
+
     <Panel id="music_dialog" class="MusicPlayerPresenter MusicHudHidden MusicHudIdle Volume3 Progress0 SearchItems0 SearchSelection0" hittest="true">
       <!-- Web reference: .card -->
       <Panel class="PlayerSurface" hittest="true">

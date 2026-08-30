@@ -23,7 +23,7 @@ internal sealed class MusicSquareSearchProvider : IDisposable
         };
         _httpClient = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
         _httpClient.DefaultRequestHeaders.UserAgent.Add(
-            new ProductInfoHeaderValue("SwiftOnlineMusicPlayerSW2", "0.3.6"));
+            new ProductInfoHeaderValue("SwiftOnlineMusicPlayerSW2", "0.4.0"));
         _httpClient.DefaultRequestHeaders.Accept.Add(
             new MediaTypeWithQualityHeaderValue("application/json"));
     }

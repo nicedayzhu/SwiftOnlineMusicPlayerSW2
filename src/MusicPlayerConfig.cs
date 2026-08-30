@@ -6,6 +6,7 @@ public sealed class MusicPlayerConfig
     public bool AutoAdvance { get; set; } = true;
     public bool AutoPlayFirstSearchResult { get; set; } = true;
     public MusicSquareSearchConfig MusicSquareSearch { get; set; } = new();
+    public LyricsConfig Lyrics { get; set; } = new();
     public List<MusicTrackConfig> Tracks { get; set; } =
     [
         new()
@@ -63,6 +64,7 @@ public sealed class MusicPlayerConfig
             AutoAdvance = source.AutoAdvance,
             AutoPlayFirstSearchResult = source.AutoPlayFirstSearchResult,
             MusicSquareSearch = MusicSquareSearchConfig.Normalize(source.MusicSquareSearch),
+            Lyrics = LyricsConfig.Normalize(source.Lyrics),
             Tracks = tracks
         };
     }
@@ -73,6 +75,42 @@ public sealed class MusicPlayerConfig
             ? fallback
             : new string(value.Where(character => !char.IsControl(character)).ToArray()).Trim();
         return text.Length <= maxLength ? text : text[..maxLength];
+    }
+}
+
+public sealed class LyricsConfig
+{
+    public bool Enabled { get; set; } = true;
+    public bool VisibleByDefault { get; set; } = true;
+    public string KuwoEndpoint { get; set; } = "https://www.kuwo.cn/openapi/v1/www/lyric/getlyric";
+    public string NeteaseEndpoint { get; set; } = "https://api.qijieya.cn/meting/";
+    public int TimeoutSeconds { get; set; } = 8;
+    public float TimingOffsetSeconds { get; set; }
+
+    internal static LyricsConfig Normalize(LyricsConfig? source)
+    {
+        source ??= new LyricsConfig();
+        var kuwoEndpoint = NormalizeEndpoint(source.KuwoEndpoint);
+        var neteaseEndpoint = NormalizeEndpoint(source.NeteaseEndpoint);
+        return new LyricsConfig
+        {
+            Enabled = source.Enabled && (kuwoEndpoint is not null || neteaseEndpoint is not null),
+            VisibleByDefault = source.VisibleByDefault,
+            KuwoEndpoint = kuwoEndpoint?.AbsoluteUri ?? string.Empty,
+            NeteaseEndpoint = neteaseEndpoint?.AbsoluteUri ?? string.Empty,
+            TimeoutSeconds = Math.Clamp(source.TimeoutSeconds, 3, 30),
+            TimingOffsetSeconds = Math.Clamp(source.TimingOffsetSeconds, -5f, 5f)
+        };
+    }
+
+    private static Uri? NormalizeEndpoint(string? value)
+    {
+        var text = (value ?? string.Empty).Trim();
+        return text.Length is > 0 and <= 2048 &&
+               Uri.TryCreate(text, UriKind.Absolute, out var endpoint) &&
+               (endpoint.Scheme == Uri.UriSchemeHttps || endpoint.Scheme == Uri.UriSchemeHttp)
+            ? endpoint
+            : null;
     }
 }
 
