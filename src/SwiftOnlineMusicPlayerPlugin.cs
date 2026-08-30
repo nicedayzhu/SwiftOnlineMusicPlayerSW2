@@ -17,7 +17,7 @@ namespace SwiftOnlineMusicPlayerSW2;
     Id = "SwiftOnlineMusicPlayerSW2",
     Version = "0.4.0",
     Name = "Swift Online Music Player",
-    Author = "SkinTools",
+    Author = "niceday_zhu",
     Description = "Per-player online music playback, synchronized lyrics, and MusicSquare-inspired search with a CCSCustomHudLayout controller.",
     MinimumAPIVersion = "1.2.0"
 )]

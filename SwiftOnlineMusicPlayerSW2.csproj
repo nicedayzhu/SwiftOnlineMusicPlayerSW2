@@ -7,6 +7,10 @@
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <AssemblyName>SwiftOnlineMusicPlayerSW2</AssemblyName>
+    <Authors>niceday_zhu</Authors>
+    <Copyright>Copyright (c) 2026 niceday_zhu</Copyright>
+    <Description>Per-player online music playback, synchronized lyrics, and an interactive CS2 Custom HUD for SwiftlyS2.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <OutputPath>$(MSBuildThisFileDirectory)build\</OutputPath>
     <PublishDir>$(OutputPath)publish\SwiftOnlineMusicPlayerSW2\</PublishDir>
     <Platforms>AnyCPU;x64</Platforms>

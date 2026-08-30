@@ -1,155 +1,80 @@
 # SwiftOnlineMusicPlayerSW2
 
-这是一个独立的 SwiftlyS2 项目：玩家输入 `!music` 后，在 CS2 游戏内打开一张可点击的在线音乐播放器卡片。界面基于用户提供的 Uiverse 音乐播放器重新设计，并转换为 CS2 `CCSCustomHudLayout` 允许的 VXML/VCSS。
+[English](README.md) | 简体中文
 
-## 技术路线
+SwiftOnlineMusicPlayerSW2 是面向 Counter-Strike 2 与 SwiftlyS2 的逐玩家在线音乐播放器。它将在线音频播放、服务器侧歌曲搜索、同步歌词与一套可交互的 `CCSCustomHudLayout` 界面整合在同一个项目中。
 
-项目把界面与音频明确分层：
+![SwiftOnlineMusicPlayerSW2 游戏内效果](docs/assets/swift-online-music-player-preview.png)
 
-1. 客户端 VPK 提供已编译的 VXML/VCSS 音乐播放器。
-2. 服务器创建一个 `custom_hud_layout`，逐玩家写入曲名、歌手、时间、状态、进度、歌词和音量 CSS 类，并接收静态 Button ID。
-3. [SwiftlyS2-Plugins/Audio](https://github.com/SwiftlyS2-Plugins/Audio) 从直接音频 URL 解码音源，通过 CS2 VoIP 音频通道逐玩家投递。
-4. 每位玩家使用独立 Audio channel，因此暂停、切歌和音量不会影响其他玩家。
+## 核心能力
 
-不能让这个 Custom HUD 自己播放 URL：当前 CS2 的 `CCSCustomHudLayout` 校验器禁止 VJS、HTML 和 Audio 面板。SwiftlyS2 原生 `SoundEvent` 也只播放客户端已有的声音事件，不接受任意在线音频。因此，Audio 插件的 URL 解码 + VoIP 是当前路线中功能最完整、对客户端侵入最小的办法。
+- 每位玩家拥有独立的播放频道、播放进度、音量、搜索结果和歌词状态。
+- 支持播放、暂停、继续、停止、上一首、下一首及 0%–100% 六档音量。
+- 支持酷我优先、网易云兼容接口回退的服务器侧在线搜索。
+- 搜索结果直接显示在 HUD 抽屉中，每页 5 条，最多 10 条，可点击选择。
+- 支持酷我 JSON 歌词与网易云 LRC 的逐行同步显示。
+- 播放器出现时仍可正常瞄准；按下并松开鼠标右键后进入 UI 交互模式。
+- 关闭播放器卡片不会中断音乐；停止播放、切歌、断线或插件卸载会清理相应状态。
+- 配置文件支持热重载，并对 URL、DNS、响应大小、超时和音频主机执行服务端校验。
+- 歌词机制已直接集成到本项目的 HUD 与 VPK 中，不需要额外安装 HudText 插件或 addon。
 
-## 已实现
+## 系统结构
 
-- `!music` 打开播放器，`!music_close` 只关闭 UI，音乐继续播放。
-- 在线 URL 加载、播放、暂停、继续、上一首、下一首。
-- 服务器侧在线搜索：`!music_search <歌名/歌手>` 以酷我为主、网易云为回退，并在 HUD 内展开可点击的候选曲目菜单；每页 5 条，最多支持配置允许的 10 条结果。
-- `!music_pick <序号>` 精确选择搜索结果，`!music_library` 返回管理员静态曲库；结果与冷却时间均逐玩家隔离。
-- 逐玩家 0%–100% 六档音量。
-- 爱心按钮可标记当前连接期间的逐玩家收藏状态；它不会伪装成已持久化的服务器曲库修改。
-- 曲名、歌手、当前时间、总时长、加载/暂停/错误状态。
-- 酷我/网易云逐行同步歌词：复用 HudText 的“固定 Label + 逐玩家 dialog variable/class”机制，但直接并入本项目现有 VXML/VCSS 和 VPK，不安装 HudText 插件，也不要求额外 addon。
-- 当前歌词与下一句以不拦截输入的屏幕底部双行层显示；歌词随暂停/恢复保持同步，关闭播放器卡片后仍随后台音乐继续，停止、切歌、断线和卸载时立即清理。
-- `!music_lyrics [on|off]` 允许每位玩家独立显示或隐藏歌词；默认行为和最多 ±5 秒的校时偏移可由服务器配置。
-- 20 段进度显示；`DurationSeconds = 0` 时显示 LIVE 动画。
-- 配置文件热重载；URL 只允许 HTTP/HTTPS，最多 64 首。
-- 搜索请求带有 3–30 秒超时、0–60 秒冷却、512 KiB 响应上限、禁用 HTTP 重定向、公网 DNS 检查和音频主机后缀白名单。
-- 歌词请求同样禁用重定向，带有独立超时、512 KiB 响应上限和公网 DNS 检查；歌词不可用不会阻断音频播放。
-- 相同 URL 的解码结果在服务器内缓存并由玩家共享，播放游标仍然逐玩家独立。
-- 玩家断线、插件卸载、HUD 关闭时的音频与鼠标捕获清理。
-- Audio 插件缺失、URL 解码失败、GameData 失效时均显示明确状态，不会假装播放成功。
+| 组件 | 职责 | 运行位置 |
+| --- | --- | --- |
+| SwiftlyS2 插件 | 会话、命令、搜索、歌词、音频频道及 HUD 状态同步 | CS2 服务器 |
+| SwiftlyS2 Audio | 解码在线媒体并通过 CS2 VoIP 向指定玩家投递音频 | CS2 服务器 |
+| `swift_online_music_player.vpk` | 已编译的 Panorama 布局、样式和图标 | 服务器与客户端 |
+| Custom HUD 原生桥 | 写入逐玩家 dialog variable / CSS class，接收 HUD 点击事件 | Windows `server.dll` |
 
-## 依赖
+`CCSCustomHudLayout` 不允许任意 VJS、HTML 或 Audio 面板，因此在线音频由服务器端 Audio 插件解码，HUD 只负责展示与交互。
 
-- SwiftlyS2 `1.4.6-beta.8` 或兼容版本。
-- SwiftlyS2 Audio 插件及其 API `2.0.0`。
-- Windows CS2 服务器。当前 Custom HUD 原生桥签名仅提供 Windows 快照。
-- 客户端和服务器都必须挂载本项目生成的 HUD VPK。
-- 若希望 FFmpeg 处理更多格式或流协议，需要在服务器 PATH 中安装 FFmpeg，并在 Audio 插件的 `config.jsonc` 中启用 `UseFFMpeg`。
+## 快速开始
 
-Audio 插件本体必须单独下载并作为 SwiftlyS2 插件安装；本项目只引用它的 API 包，不复制它的 GPL 源码或二进制。
+### 前置条件
 
-## 音源配置
+- .NET 10 SDK
+- SwiftlyS2 `1.4.6-beta.8` 或兼容版本
+- 单独安装的 [SwiftlyS2 Audio](https://github.com/SwiftlyS2-Plugins/Audio) 插件
+- Windows CS2 服务器
+- CS2 ResourceCompiler 与 VPKEdit CLI（仅构建 HUD VPK 时需要）
 
-首次加载后，SwiftlyS2 会在本插件配置目录创建 `config.jsonc`。默认模型相当于：
-
-```jsonc
-{
-  "MusicPlayer": {
-    "DefaultVolume": 0.65,
-    "AutoAdvance": true,
-    "AutoPlayFirstSearchResult": true,
-    "Lyrics": {
-      "Enabled": true,
-      "VisibleByDefault": true,
-      "KuwoEndpoint": "https://www.kuwo.cn/openapi/v1/www/lyric/getlyric",
-      "NeteaseEndpoint": "https://api.qijieya.cn/meting/",
-      "TimeoutSeconds": 8,
-      "TimingOffsetSeconds": 0.0
-    },
-    "MusicSquareSearch": {
-      "Enabled": true,
-      "KuwoEnabled": true,
-      "KuwoSearchEndpoint": "https://oiapi.net/api/Kuwo",
-      "KuwoQualityIndex": 6,
-      "SearchEndpoint": "https://api.qijieya.cn/meting/",
-      "ResultLimit": 5,
-      "TimeoutSeconds": 10,
-      "CooldownSeconds": 5,
-      "AllowedAudioHostSuffixes": [
-        "api.qijieya.cn",
-        "kuwo.cn",
-        "music.126.net",
-        "music.163.com"
-      ]
-    },
-    "Tracks": [
-      {
-        "Title": "SoundHelix Song 1",
-        "Artist": "SoundHelix",
-        "Url": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-        "DurationSeconds": 373
-      }
-    ]
-  }
-}
-```
-
-要求：
-
-- `Url` 必须是解码器可以直接读取的 HTTP/HTTPS 媒体地址。
-- YouTube、Spotify、网易云等网页链接不是音频流地址，不能直接填入；如需这类来源，应在服务器外部合法解析/转码成受控的直链或自建流媒体端点。
-- `DurationSeconds` 用于 HUD 计时和自动下一首。直播流或未知时长填 `0`。
-- `AutoPlayFirstSearchResult` 默认是 `true`：搜索成功后保留候选菜单并自动加载第 1 条；设为 `false` 后只展示结果，等待玩家点击或输入 `!music_pick`。
-- `Lyrics.Enabled` 控制服务器歌词功能，`VisibleByDefault` 控制新会话是否默认显示。`TimingOffsetSeconds` 为正时歌词提前、为负时延后，范围会限制在 `-5` 到 `5` 秒。
-- 在线搜索得到的酷我和网易云曲目会自动获取同步歌词；没有受支持 `Source`/`SourceId` 的静态曲库曲目不会发起歌词请求。
-- `MusicSquareSearch` 是可选的服务器侧搜索适配器。默认先查询酷我 OIAPI，无法得到可播放结果时回退到网易云 qijieya Meting；管理员可分别关闭酷我或换成协议兼容的自建端点。
-- `AllowedAudioHostSuffixes` 应保持尽量小。留空会接受任意公网 HTTP(S) 音频主机，不建议在生产服这样配置。
-- 只使用你有权公开播放的音频，并遵守所在地区的版权、表演权和平台条款。
-
-## MusicSquare 采用范围
-
-本项目没有嵌入或抓取 MusicSquare 网页，也没有复制其播放器实现。采用的是它公开源码中可观察到的“搜索元数据 → 获取直接音频 URL → 交给播放器”适配思路，并独立实现了 C# 服务端客户端。
-
-- 当前以酷我搜索为主：服务端对候选进行匹配、URL 公网校验和音频主机白名单校验；酷我无可播放结果时再回退到网易云 qijieya Meting 路径。
-- 搜索结果会同时写入聊天区和 HUD 曲目抽屉：聊天保留编号、曲名、歌手和来源，HUD 提供可点击选择，便于玩家在不同交互习惯下使用。
-- 暂不接入 QQ：需要第二次详情请求，付费/VIP 结果不保证可播放。
-- 暂不接入 JOOX：MusicSquare 前端包含第三方 token，本项目不会复制或分发该凭据。
-- MusicSquare 的 Apache-2.0 许可证只覆盖它的源码，不授予任何歌曲、平台目录或公开演播权。其在线演示也明确声明音乐版权归平台和原作者所有。
-
-更完整的接口、风险和扩展分析见 [`docs/MUSICSQUARE_ANALYSIS.md`](docs/MUSICSQUARE_ANALYSIS.md)；HudText 机制的采用范围、歌词数据流和生命周期见 [`docs/HUDTEXT_LYRICS_ANALYSIS.md`](docs/HUDTEXT_LYRICS_ANALYSIS.md)。
-
-## 命令
-
-- `!music`：打开/重新打开播放器。
-- `!music_close`：关闭播放器 UI，不停止后台音乐。
-- `!music_stop`：停止并重置自己的音乐频道。
-- `!music_lyrics [on|off]`：切换自己屏幕上的同步歌词；省略参数时反转当前状态。
-- `!music_status`：显示 Audio、HUD、曲库和个人会话状态。
-- `!music_search <歌名或歌手>`：搜索在线候选并展开 HUD 曲目菜单；默认自动播放第 1 条，也可点击任意结果切换。
-- `!music_pick <1-N>`：播放最近一次搜索的第 N 条结果。
-- `!music_library`：退出搜索结果集并返回静态曲库。
-
-播放器打开时默认不捕获鼠标，玩家仍可转动视角。按下并松开一次鼠标右键后进入指针交互态；点击播放器底部的返回瞄准操作可退出交互态并恢复视角，播放器保持显示，点击 X 则关闭播放器。
-
-歌词资源已经编译进 `swift_online_music_player.vpk`。实现只借鉴 [HudText](https://github.com/T3Marius/HudText) 的 Custom HUD 更新机制，没有引用其插件 DLL、共享接口或独立 addon；客户端仍只需挂载本项目原有的一个 VPK。
-
-## 构建插件
+### 构建服务器插件
 
 ```powershell
 dotnet restore .\SwiftOnlineMusicPlayerSW2.csproj
 dotnet publish .\SwiftOnlineMusicPlayerSW2.csproj -c Release
 ```
 
-发布目录：
+发布结果位于：
 
 ```text
 build/publish/SwiftOnlineMusicPlayerSW2/
 ```
 
-也可以部署到服务器：
+### 构建 HUD 资源
+
+先做无写入验证：
 
 ```powershell
-.\build_and_deploy.ps1 -ServerRoot "F:\csgoserver_win\cs2"
+.\tools\build_hud_resources.ps1 -Action Validate
 ```
 
-此脚本只部署服务器插件，不会安装 Audio 依赖、挂载 VPK 或修改 `gameinfo.gi`。
+再编译并打包：
 
-本机完整测试安装可使用：
+```powershell
+.\tools\build_hud_resources.ps1 -Action Build `
+  -Cs2Root "F:\Program Files (x86)\Steam\steamapps\common\Counter-Strike Global Offensive" `
+  -VpkEditCli "F:\path\to\vpkeditcli.exe"
+```
+
+输出文件：
+
+```text
+dist/swift_online_music_player.vpk
+```
+
+### 本地完整测试安装
 
 ```powershell
 .\install_local_test.ps1 `
@@ -157,53 +82,67 @@ build/publish/SwiftOnlineMusicPlayerSW2/
   -ClientRoot "F:\Program Files (x86)\Steam\steamapps\common\Counter-Strike Global Offensive"
 ```
 
-该脚本会校验当前 `server.dll`、备份已有目标、安装官方 Audio 发布包与本插件、复制服务器/客户端 VPK，并在两侧 `gameinfo.gi` 中追加独立 SearchPath。完整实机步骤见 [`TESTING_CN.md`](TESTING_CN.md)。
+该脚本会校验 `server.dll`、备份现有文件、安装 Audio 与本插件、复制客户端和服务器 VPK，并写入独立的 `gameinfo.gi` SearchPath。执行前请先停止 CS2 客户端和服务器。
 
-## 验证与构建 HUD VPK
-
-只做本地源码验证，不写入 CS2 目录：
+只部署服务器插件可使用：
 
 ```powershell
-.\tools\build_hud_resources.ps1 -Action Validate
+.\build_and_deploy.ps1 -ServerRoot "F:\csgoserver_win\cs2"
 ```
 
-编译并打包：
+这个脚本不会安装 Audio、复制 VPK 或修改 `gameinfo.gi`。
 
-```powershell
-.\tools\build_hud_resources.ps1 -Action Build `
-  -Cs2Root "F:\Program Files (x86)\Steam\steamapps\common\Counter-Strike Global Offensive" `
-  -VpkEditCli "F:\cs2dev\SkinTools\VPKEdit-Windows-Standalone-msvc-Release\vpkeditcli.exe"
-```
+完整构建、部署、配置、GameData 维护和排错说明见 [开发者文档](docs/DEVELOPMENT_CN.md)。
 
-输出：
+## 玩家命令
 
-```text
-dist/swift_online_music_player.vpk
-```
+| 命令 | 说明 |
+| --- | --- |
+| `!music` | 打开或重新打开播放器 |
+| `!music_close` | 关闭播放器 UI，音乐继续播放 |
+| `!music_stop` | 停止并重置自己的音乐频道 |
+| `!music_lyrics [on\|off]` | 显示、隐藏或切换同步歌词 |
+| `!music_status` | 查看依赖、HUD、曲库和当前会话状态 |
+| `!music_search <歌名或歌手>` | 搜索在线歌曲并展开 HUD 结果 |
+| `!music_pick <1-N>` | 播放最近一次搜索中的指定结果 |
+| `!music_library` | 退出搜索结果并返回静态曲库 |
 
-仓库中的图标源文件直接使用 `hud/icons/*.png`（128×128、8 位 RGBA）。构建脚本会生成 VTEX 描述并交给 ResourceCompiler 编译，不再需要浏览器或 Python 把 SVG 截图成 PNG；Panorama 布局中的逻辑 `.vtex` 引用保持不变。
+## 交互方式
 
-VPK 的分发/挂载方式取决于服务器现有资源方案。服务器插件本身不能让未安装资源的客户端显示 HUD。
+1. 输入 `!music` 后，播放器显示但不会立即捕获鼠标，玩家仍可转动视角。
+2. 按下并松开鼠标右键，进入指针交互状态。
+3. 点击播放器底部的返回瞄准文字，退出鼠标捕获但保留播放器。
+4. 点击右上角 `X`，关闭播放器界面；当前音乐继续播放。
 
-## 版本锁与实机验证
+## 文档
 
-`resources/gamedata/signatures.jsonc` 已在当前测试客户端和服务器的 `server.dll` 上重新验证：
+- [开发者文档](docs/DEVELOPMENT_CN.md)：架构、构建、配置、部署、GameData 与排错
+- [测试指南](TESTING_CN.md)：本地安装、实机测试矩阵与诊断收集
+- [MusicSquare 接口分析](docs/MUSICSQUARE_ANALYSIS.md)：搜索适配范围、风险与扩展建议
+- [HudText 歌词机制分析](docs/HUDTEXT_LYRICS_ANALYSIS.md)：同步歌词的数据流与生命周期
+- [English README](README.md)
+- [English development guide](docs/DEVELOPMENT.md)
 
-```text
-SHA-256: 9e5749d77dcb68883477feae751a3f28068d119ec145edcb0e4d48d15b538d36
-unique-pattern validation: 2026-08-29
-```
+## 当前状态与限制
 
-四条签名分别唯一命中，文件偏移为 `0x8A3090`、`0x8A33C0`、`0x8A3450` 和 `0x259420`。可运行 `python tools/validate_gamedata_signatures.py <server.dll> resources/gamedata/signatures.jsonc` 复查。CS2 更新后必须重新核对哈希、唯一命中和 ABI。最终还需要在两名客户端上验证：各自切歌/音量隔离、语音设置对音乐的影响、关闭 UI 后继续播放、断线/换图/热重载清理，以及 16:9 与 4:3 布局。
+- 当前 Custom HUD 原生桥只维护 Windows 签名；Linux GameData 尚未提供。
+- 客户端与服务器必须同时挂载生成的 HUD VPK，否则界面无法显示。
+- 在线搜索与歌词依赖第三方接口，项目无法保证其长期可用性。
+- 网页链接不是直接音频流。YouTube、Spotify、网易云网页等不能直接作为静态曲目 URL。
+- 收藏只在当前连接会话内保存，不会持久化为服务器曲库。
+- 当前仓库未提供公开 Workshop 物品；生产环境的资源分发方式由服务器运维方案决定。
+- CS2 更新后必须重新验证 `server.dll` 哈希、GameData 唯一命中与函数 ABI。
 
-## 参考
+## 致谢与第三方项目
 
 - [SwiftlyS2](https://github.com/swiftly-solution/swiftlys2)
 - [SwiftlyS2 Audio](https://github.com/SwiftlyS2-Plugins/Audio)
-- [Audio API: IAudioApi](https://github.com/SwiftlyS2-Plugins/Audio/blob/main/AudioApi/IAudioApi.cs)
-- [Audio API: IAudioChannelController](https://github.com/SwiftlyS2-Plugins/Audio/blob/main/AudioApi/IAudioChannelController.cs)
-- [SwiftlyS2 Sound Events](https://swiftlys2.net/docs/development/soundevents/)
-- [Uiverse music player reference](https://uiverse.io/bociKond/serious-robin-34)
-- [MusicSquare source](https://github.com/CharlesPikachu/musicsquare)
-- [MusicSquare live demo](https://charlespikachu.github.io/musicsquare/)
 - [HudText](https://github.com/T3Marius/HudText)
+- [MusicSquare](https://github.com/CharlesPikachu/musicsquare)
+- [Uiverse music player reference](https://uiverse.io/bociKond/serious-robin-34)
+
+本项目借鉴 HudText 的 Custom HUD 更新机制和 MusicSquare 的搜索适配思路，但没有打包它们的插件、addon、访问凭据或第三方音乐内容。第三方项目、接口、音乐目录与素材仍受各自许可证和服务条款约束。
+
+## 许可证
+
+本项目以 [MIT License](LICENSE) 发布。音乐版权、公开播放权以及第三方服务、依赖和素材的授权不包含在该许可证范围内，仍应遵守各自条款。
