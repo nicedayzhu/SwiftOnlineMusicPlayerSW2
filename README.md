@@ -15,6 +15,7 @@ Quick commands:
 - `!music_status` — show dependency and session status.
 - The heart button toggles a per-player favorite marker for the current connection; it is intentionally not persisted as a server library edit.
 - Search results are echoed to chat and the first result plays automatically by default. Set `MusicPlayer.AutoPlayFirstSearchResult` to `false` to require an explicit HUD/command selection.
+- Opening the player keeps aiming active. Press and release right-click once to enter pointer interaction mode; click the footer action to return to aiming while the player remains visible, or use X to close it.
 
 Important constraints:
 

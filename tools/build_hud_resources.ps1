@@ -207,6 +207,7 @@ function Test-HudSources {
         "music_player_result_3",
         "music_player_result_4",
         "music_player_result_5",
+        "music_player_return_to_aim",
         "music_player_close"
     )
     foreach ($buttonId in $expectedButtons) {
@@ -218,14 +219,16 @@ function Test-HudSources {
 
     $style = Get-Content -Raw -LiteralPath $stylePath
     $referenceStyleContracts = [ordered]@{
-        ".MusicPlayerPresenter" = @("width: 250px;", "height: 155px;")
-        ".PlayerSurface" = @("width: 250px;", "height: 155px;", "background-color: #191414;", "border-radius: 10px;")
+        ".MusicPlayerPresenter" = @("width: 250px;", "height: 170px;")
+        ".PlayerSurface" = @("width: 250px;", "height: 170px;", "background-color: #191414;", "border-radius: 10px;")
         ".AlbumArt" = @("width: 40px;", "height: 40px;", "background-color: #ffffff;", "border-radius: 5px;")
         ".TrackTitle" = @("font-size: 20px;", "color: #ffffff;")
         ".ControlButton" = @("width: 24px;", "height: 24px;", "background-color: #00000000;")
         ".TimeBadge" = @("background-color: #00000060;", "border-radius: 8px;")
         ".ProgressTrack" = @("height: 6px;", "background-color: #5e5e5e;", "border-radius: 3px;")
         ".ProgressFill" = @("background-color: #1db954;", "border-radius: 3px;")
+        ".InteractionModeButton" = @("height: 22px;", "background-color: #00000000;", "cursor: pointer;")
+        ".InteractionHint" = @("font-size: 12px;", "font-weight: bold;", "text-shadow: 0px 1px 2px 1.5 #000000;")
         ".SearchDrawer" = @("height: 250px;")
         ".SearchResultTitle" = @("font-size: 12px;")
         ".SearchResultMeta" = @("font-size: 10px;", "color: #ffffffaa;")
@@ -264,6 +267,9 @@ function Test-HudSources {
         ".SpectrumBar",
         ".MusicHudPlaying .PauseIcon",
         ".MusicHudSearchOpen .SearchDrawer",
+        ".MusicHudInteractive .InteractionHint",
+        ".MusicHudInteractive .InteractionModeButton:hover",
+        ".MusicHudInteractive .InteractionModeButton:active",
         ".MusicHudFavorite .HeartIcon")) {
         if ($style -notmatch [regex]::Escape($requiredStyle)) {
             throw "Stylesheet is missing the native spectrum/icon contract: $requiredStyle"
@@ -290,10 +296,13 @@ function Test-HudSources {
         "track-title", "artist-name", "source-name", "current-time", "duration", "play-action",
         "volume-text", "status", "search-hint-kicker", "search-hint-text", "results-label",
         "results-hint", "results-chevron", "search-heading", "search-query", "search-page",
-        "search-empty-title", "search-empty-hint", "search-drawer-hint")) {
+        "search-empty-title", "search-empty-hint", "search-drawer-hint", "interaction-hint")) {
         if ($plugin -notmatch [regex]::Escape('"' + $dialogVariable + '"')) {
             throw "Plugin does not render dialog variable: $dialogVariable"
         }
+    }
+    if ($layout.OuterXml -notmatch [regex]::Escape("{s:interaction-hint}")) {
+        throw "Layout is missing the interaction hint dialog variable."
     }
     foreach ($resultSuffix in @("index", "title", "meta")) {
         $template = 'search-result-{variableIndex}-' + $resultSuffix
@@ -316,6 +325,17 @@ function Test-HudSources {
         "LooksLikeVariant(result.Title, result.Artist)")) {
         if ($plugin -notmatch [regex]::Escape($searchContract)) {
             throw "Plugin is missing search result behavior: $searchContract"
+        }
+    }
+    foreach ($inputContract in @(
+        "Core.GameHooks.Controller.ProcessUsercmds.Pre += OnProcessUsercmdsPre;",
+        "SetHudInteraction(playerSlot, enabled: false);",
+        "_mouse2CapturePendingSlots.Add(playerSlot);",
+        "enableInteractionAfterRelease",
+        "buttons.Buttonstate1 &= ~mouse2Mask;",
+        "command.Attack2StartHistoryIndex = -1;")) {
+        if ($plugin -notmatch [regex]::Escape($inputContract)) {
+            throw "Plugin is missing two-stage mouse interaction behavior: $inputContract"
         }
     }
     $configSource = Get-Content -Raw -LiteralPath $configPath

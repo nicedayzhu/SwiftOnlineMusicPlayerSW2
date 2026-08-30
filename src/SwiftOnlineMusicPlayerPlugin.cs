@@ -7,6 +7,7 @@ using SwiftlyS2.Shared;
 using SwiftlyS2.Shared.Commands;
 using SwiftlyS2.Shared.EntitySystem;
 using SwiftlyS2.Shared.Events;
+using SwiftlyS2.Shared.GameHooks;
 using SwiftlyS2.Shared.Plugins;
 using SwiftlyS2.Shared.SchemaDefinitions;
 
@@ -14,7 +15,7 @@ namespace SwiftOnlineMusicPlayerSW2;
 
 [PluginMetadata(
     Id = "SwiftOnlineMusicPlayerSW2",
-    Version = "0.3.0",
+    Version = "0.3.6",
     Name = "Swift Online Music Player",
     Author = "SkinTools",
     Description = "Per-player online music playback and MusicSquare-inspired search with a CCSCustomHudLayout controller.",
@@ -27,6 +28,7 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
     private const string LayoutResource = "panorama/layout/custom_game/online_music_player_custom_hud.xml";
     private const string DialogPanelId = "music_dialog";
     private const string HiddenClass = "MusicHudHidden";
+    private const string InteractiveClass = "MusicHudInteractive";
     private const string RuntimeConfigFileName = "config.jsonc";
     private const string RuntimeConfigSectionName = "MusicPlayer";
     private const int ProgressStepCount = 20;
@@ -41,6 +43,9 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
 
     private readonly Dictionary<int, PlayerSession> _sessions = [];
     private readonly HashSet<int> _openSlots = [];
+    private readonly HashSet<int> _inputCapturedSlots = [];
+    private readonly HashSet<int> _mouse2HeldSlots = [];
+    private readonly HashSet<int> _mouse2CapturePendingSlots = [];
     private readonly ConcurrentDictionary<string, Lazy<Task<IAudioSource>>> _sourceCache =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly MusicSquareSearchProvider _searchProvider = new();
@@ -77,6 +82,7 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
         }
 
         Core.Event.OnClientDisconnected += OnClientDisconnected;
+        Core.GameHooks.Controller.ProcessUsercmds.Pre += OnProcessUsercmdsPre;
         _hudRefreshTimer = Core.Scheduler.RepeatBySeconds(1f, UpdateOpenHuds);
 
         Logger.LogInformation(
@@ -134,6 +140,7 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
         _hudRefreshTimer?.Dispose();
         _hudRefreshTimer = null;
         Core.Event.OnClientDisconnected -= OnClientDisconnected;
+        Core.GameHooks.Controller.ProcessUsercmds.Pre -= OnProcessUsercmdsPre;
 
         foreach (var playerSlot in _sessions.Keys.ToArray())
         {
@@ -170,8 +177,8 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
             EnsureLayout();
             OpenHud(player.Slot);
             context.Reply(_audioApi is null
-                ? "[Music] Player opened, but the SwiftlyS2 Audio plugin is not available."
-                : "[Music] Player opened. Close it with the X button or !music_close.");
+                ? "[Music] Player opened, but the SwiftlyS2 Audio plugin is not available. Right-click to interact."
+                : "[Music] Player opened. Right-click to interact; click the footer action to return to aiming.");
         }
         catch (Exception exception)
         {
@@ -287,7 +294,7 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
         session.Error = string.Empty;
         session.ElapsedBeforeResume = TimeSpan.Zero;
         session.StartedAt = null;
-        session.Channel?.Reset(session.PlayerSlot);
+        session.Channel?.Stop(session.PlayerSlot);
 
         if (_nativeHud is not null)
         {
@@ -560,6 +567,9 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
         }
 
         _openSlots.Clear();
+        _inputCapturedSlots.Clear();
+        _mouse2HeldSlots.Clear();
+        _mouse2CapturePendingSlots.Clear();
         foreach (var session in _sessions.Values)
         {
             session.ResetRenderedClasses();
@@ -585,25 +595,129 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
         }
 
         var session = GetOrCreateSession(playerSlot);
-        _nativeHud.SetHasClassForPlayer(layoutAddress, playerSlot, DialogPanelId, HiddenClass, false);
-        _nativeHud.SetInputCaptureEnabled(layoutAddress, playerSlot, true);
         _openSlots.Add(playerSlot);
+        _mouse2HeldSlots.Remove(playerSlot);
+        _mouse2CapturePendingSlots.Remove(playerSlot);
+        _nativeHud.SetHasClassForPlayer(layoutAddress, playerSlot, DialogPanelId, HiddenClass, false);
+        SetHudInteraction(playerSlot, enabled: false);
         session.ResetRenderedClasses();
         RenderHud(session, forceClasses: true);
     }
 
     private bool CloseHud(int playerSlot)
     {
-        if (!_openSlots.Remove(playerSlot) ||
-            !TryGetLayoutAddress(out var layoutAddress) ||
-            _nativeHud is null)
+        if (!_openSlots.Contains(playerSlot))
         {
             return false;
         }
 
-        _nativeHud.SetInputCaptureEnabled(layoutAddress, playerSlot, false);
-        _nativeHud.SetHasClassForPlayer(layoutAddress, playerSlot, DialogPanelId, HiddenClass, true);
+        if (TryGetLayoutAddress(out var layoutAddress) && _nativeHud is not null)
+        {
+            _nativeHud.SetInputCaptureEnabled(layoutAddress, playerSlot, false);
+            _nativeHud.SetHasClassForPlayer(layoutAddress, playerSlot, DialogPanelId, InteractiveClass, false);
+            _nativeHud.SetHasClassForPlayer(layoutAddress, playerSlot, DialogPanelId, HiddenClass, true);
+        }
+
+        ForgetHudState(playerSlot);
         return true;
+    }
+
+    private void OnProcessUsercmdsPre(ref ProcessUsercmdsPreContext context)
+    {
+        var playerSlot = context.Params.Player.Slot;
+        if (!_openSlots.Contains(playerSlot))
+        {
+            _mouse2HeldSlots.Remove(playerSlot);
+            _mouse2CapturePendingSlots.Remove(playerSlot);
+            return;
+        }
+
+        var wasMouse2Down = _mouse2HeldSlots.Contains(playerSlot);
+        var inputCaptured = _inputCapturedSlots.Contains(playerSlot);
+        var enableInteractionAfterRelease = false;
+        var mouse2Mask = (ulong)GameButtonFlags.Mouse2;
+        foreach (var userCmd in context.Params.Usercmds)
+        {
+            var command = userCmd.CSGOUserCmd;
+            var buttons = command.Base.ButtonsPb;
+            var isMouse2Down = (buttons.Buttonstate1 & mouse2Mask) != 0;
+
+            if (!inputCaptured)
+            {
+                if (isMouse2Down && !wasMouse2Down)
+                {
+                    // Wait for this click to be released before enabling Panorama
+                    // capture. Otherwise the release can be swallowed, leaving the
+                    // next right-click indistinguishable from the first held click.
+                    _mouse2CapturePendingSlots.Add(playerSlot);
+                }
+                else if (!isMouse2Down && wasMouse2Down &&
+                         _mouse2CapturePendingSlots.Remove(playerSlot))
+                {
+                    enableInteractionAfterRelease = true;
+                }
+            }
+
+            wasMouse2Down = isMouse2Down;
+            buttons.Buttonstate1 &= ~mouse2Mask;
+            buttons.Buttonstate2 &= ~mouse2Mask;
+            buttons.Buttonstate3 &= ~mouse2Mask;
+            command.Attack2StartHistoryIndex = -1;
+        }
+
+        if (wasMouse2Down)
+        {
+            _mouse2HeldSlots.Add(playerSlot);
+        }
+        else
+        {
+            _mouse2HeldSlots.Remove(playerSlot);
+        }
+
+        if (enableInteractionAfterRelease)
+        {
+            Core.Scheduler.NextWorldUpdate(() => SetHudInteraction(playerSlot, enabled: true));
+        }
+    }
+
+    private bool SetHudInteraction(int playerSlot, bool enabled)
+    {
+        if (!_openSlots.Contains(playerSlot) ||
+            !TryGetLayoutAddress(out var layoutAddress) ||
+            _nativeHud is null)
+        {
+            _inputCapturedSlots.Remove(playerSlot);
+            _mouse2CapturePendingSlots.Remove(playerSlot);
+            return false;
+        }
+
+        _mouse2CapturePendingSlots.Remove(playerSlot);
+        _nativeHud.SetInputCaptureEnabled(layoutAddress, playerSlot, enabled);
+        _nativeHud.SetHasClassForPlayer(layoutAddress, playerSlot, DialogPanelId, InteractiveClass, enabled);
+        SetDialogValue(
+            layoutAddress,
+            playerSlot,
+            "interaction-hint",
+            enabled ? "CLICK TO RETURN TO AIM" : "RIGHT CLICK TO INTERACT");
+
+        if (enabled)
+        {
+            _inputCapturedSlots.Add(playerSlot);
+        }
+        else
+        {
+            _inputCapturedSlots.Remove(playerSlot);
+        }
+
+        return true;
+    }
+
+    private void ForgetHudState(int playerSlot)
+    {
+        _openSlots.Remove(playerSlot);
+        _inputCapturedSlots.Remove(playerSlot);
+        _mouse2HeldSlots.Remove(playerSlot);
+        _mouse2CapturePendingSlots.Remove(playerSlot);
     }
 
     private PlayerSession GetOrCreateSession(int playerSlot)
@@ -646,7 +760,9 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
             candidate.IsValid &&
             candidate.Controller is { IsValid: true } controller &&
             controller.Address == playerControllerAddress);
-        if (player is null || !_openSlots.Contains(player.Slot))
+        if (player is null ||
+            !_openSlots.Contains(player.Slot) ||
+            !_inputCapturedSlots.Contains(player.Slot))
         {
             return;
         }
@@ -698,6 +814,9 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
                 break;
             case "music_player_close":
                 _ = CloseHud(player.Slot);
+                return;
+            case "music_player_return_to_aim":
+                _ = SetHudInteraction(player.Slot, enabled: false);
                 return;
             default:
                 return;
@@ -879,7 +998,7 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
         session.StartedAt = null;
         session.PendingTrack = track;
         session.ActiveTrack = null;
-        session.Channel!.Reset(session.PlayerSlot);
+        session.Channel!.Stop(session.PlayerSlot);
 
         var generation = session.Generation;
         var api = _audioApi!;
@@ -935,7 +1054,7 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
             return;
         }
 
-        session.Channel!.Reset(playerSlot);
+        session.Channel!.Stop(playerSlot);
         session.Channel.SetSource(source);
         session.Channel.SetVolume(playerSlot, VolumeFromStep(session.VolumeStep));
         session.Channel.Play(playerSlot);
@@ -1017,6 +1136,9 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
         if (!TryGetLayoutAddress(out _))
         {
             _openSlots.Clear();
+            _inputCapturedSlots.Clear();
+            _mouse2HeldSlots.Clear();
+            _mouse2CapturePendingSlots.Clear();
             return;
         }
 
@@ -1024,7 +1146,7 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
         {
             if (!_sessions.TryGetValue(playerSlot, out var session))
             {
-                _openSlots.Remove(playerSlot);
+                ForgetHudState(playerSlot);
                 continue;
             }
 
@@ -1079,6 +1201,7 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
             : 0;
         var searchAvailable = !string.IsNullOrEmpty(session.LastSearchQuery);
         var hasTrack = track is not null && session.State != PlaybackState.Searching;
+        var inputCaptured = _inputCapturedSlots.Contains(session.PlayerSlot);
 
         SetDialogValue(layoutAddress, session.PlayerSlot, "track-title", track?.Title ?? "No tracks configured");
         SetDialogValue(layoutAddress, session.PlayerSlot, "artist-name", track?.Artist ?? "Edit config.jsonc");
@@ -1119,6 +1242,11 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
             ? "KUWO PRIMARY / NETEASE FALLBACK"
             : "TRY A MORE SPECIFIC SONG OR ARTIST");
         SetDialogValue(layoutAddress, session.PlayerSlot, "search-drawer-hint", "CLICK A TRACK TO PLAY / USE THE ARROWS TO CHANGE PAGE");
+        SetDialogValue(
+            layoutAddress,
+            session.PlayerSlot,
+            "interaction-hint",
+            inputCaptured ? "CLICK TO RETURN TO AIM" : "RIGHT CLICK TO INTERACT");
 
         for (var row = 0; row < SearchRowsPerPage; row++)
         {
@@ -1197,6 +1325,7 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
         SetBooleanClass(layoutAddress, session.PlayerSlot, "MusicHudSearchOpen", searchAvailable && session.SearchMenuOpen);
         SetBooleanClass(layoutAddress, session.PlayerSlot, "MusicHudMultiPage", searchPageCount > 1);
         SetBooleanClass(layoutAddress, session.PlayerSlot, "MusicHudHasTrack", hasTrack);
+        SetBooleanClass(layoutAddress, session.PlayerSlot, InteractiveClass, inputCaptured);
         SetBooleanClass(
             layoutAddress,
             session.PlayerSlot,
@@ -1354,11 +1483,13 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
         session.Generation++;
         try
         {
-            session.Channel?.Reset(session.PlayerSlot);
+            // Audio 1.0.6 Reset only rewinds the cursor; Stop also pauses the
+            // per-slot stream so a later occupant of this slot cannot inherit it.
+            session.Channel?.Stop(session.PlayerSlot);
         }
         catch (Exception exception)
         {
-            Logger.LogWarning(exception, "[SwiftOnlineMusicPlayer] Failed to reset audio for slot {PlayerSlot}.", session.PlayerSlot);
+            Logger.LogWarning(exception, "[SwiftOnlineMusicPlayer] Failed to stop audio for slot {PlayerSlot}.", session.PlayerSlot);
         }
 
         session.State = PlaybackState.Idle;
@@ -1380,7 +1511,7 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
         }
         else
         {
-            _openSlots.Remove(playerSlot);
+            ForgetHudState(playerSlot);
         }
 
         if (!_sessions.Remove(playerSlot, out var session))
@@ -1424,6 +1555,9 @@ public sealed class SwiftOnlineMusicPlayerPlugin(ISwiftlyCore core) : BasePlugin
         }
 
         _openSlots.Clear();
+        _inputCapturedSlots.Clear();
+        _mouse2HeldSlots.Clear();
+        _mouse2CapturePendingSlots.Clear();
         if (entity is not { IsValid: true })
         {
             return false;

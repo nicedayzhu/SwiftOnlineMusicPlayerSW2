@@ -34,7 +34,7 @@ Audio 测试阶段保持 `UseFFMpeg: false`，先使用随插件提供的 `pcmde
 
 ## 二、静态直链播放
 
-1. 输入 `!music`，应出现播放器卡片并捕获鼠标。
+1. 输入 `!music`，应出现播放器卡片但不捕获鼠标，玩家仍可转动视角；按下并松开一次鼠标右键，指针出现后再操作播放器按钮。
 2. 点击播放，默认 SoundHelix 测试曲应在数秒内开始。
 3. 依次测试暂停、继续、音量减、音量加、上一首、下一首。
 4. 点击爱心，确认当前曲目的收藏高亮可切换，切歌后状态按曲目独立；重新连接后无需保留。
@@ -80,7 +80,11 @@ Audio 测试阶段保持 `UseFFMpeg: false`，先使用随插件提供的 `pcmde
 ## 五、画面与清理
 
 - 测试 16:9 和 4:3。
+- 输入 `!music` 后确认 HUD 立即出现，但鼠标指针不出现，玩家仍可正常转动视角。
+- HUD 打开时按下并松开一次鼠标右键，确认指针在松开后出现、播放器按钮可点击，且武器不会开镜或触发副攻击。
+- 确认底部 `CLICK TO RETURN TO AIM` 显示为醒目的绿色纯文字提示，没有外框或填充；鼠标悬停时文字变白、轻微放大并播放悬停音效，按下时有缩小和点击音效；点击文字所在区域后指针消失、HUD 保持显示，并立即恢复视角控制；再次右键不是退出手势。
 - 点击 X、`!music_close`、`!music_stop` 后验证鼠标状态。
+- 播放音乐时直接掉线并重新进服，确认旧歌曲不会自动恢复播放。
 - 换图一次，重新输入 `!music`。
 - 测试插件热重载或服务器重启后再次打开。
 - 退出服务器后确认客户端没有残留 HUD。
@@ -144,11 +148,11 @@ vcss
 - `server.dll` SHA-256：`9E5749D77DCB68883477FEAE751A3F28068D119EC145EDCB0E4D48D15B538D36`
 - 四条 Custom HUD 原生签名均唯一命中。
 - Audio v1.0.6 官方 ZIP SHA-256：`CF719B1AE4784202D7673BF2D55B172A0F7A0E8502D84C7BE968AC14D157F4FF`
-- 当前实机安装的服务器/客户端/项目音浪修正版 VPK SHA-256：`ED743ECB0AA3E600B24260EFA9EE7FD6BC14E5CA42E7F583E9EB657EFE95113E`。
-- 本次实机安装的插件 DLL SHA-256：`BBFAB3289AD4C582A11108301BBA35BA8A41B0D6119F8B289F2534BAF5AD980C`。
+- 当前实机安装的服务器/客户端/项目 HUD VPK SHA-256：`A839DA366E7CB8355EEF28FDE854D96E5DA5AAC55877672988B076589750D027`。
+- 本次实机安装的插件 DLL SHA-256：`94A1B15AB51FCE5268D369601357837601E7251AC88787BE6EAC26F08C494DA2`。
 
 原始 `gameinfo.gi` 备份位于：
 
 ```text
-F:\cs2dev\SkinTools\res\SwiftOnlineMusicPlayerSW2\build\install-backups\20260829-225908
+F:\cs2dev\SkinTools\res\SwiftOnlineMusicPlayerSW2\build\install-backups\20260830-105617
 ```

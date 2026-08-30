@@ -75,6 +75,10 @@
           </Panel>
           <Label class="TimeBadge Duration" text="{s:duration}" hittest="false" />
         </Panel>
+
+        <Button id="music_player_return_to_aim" class="InteractionModeButton">
+          <Label class="InteractionHint" text="{s:interaction-hint}" hittest="false" />
+        </Button>
       </Panel>
 
       <!-- Search stays visually separate so the player card always keeps the reference proportions. -->
