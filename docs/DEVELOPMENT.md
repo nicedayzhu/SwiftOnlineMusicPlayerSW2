@@ -13,9 +13,10 @@ SwiftOnlineMusicPlayerSW2 consists of a server plugin and client-facing HUD reso
 | Plugin publish directory | `build/publish/SwiftOnlineMusicPlayerSW2/` | SwiftlyS2 plugin and GameData |
 | Plugin archive | `SwiftOnlineMusicPlayerSW2.zip` | Distribution archive produced after `dotnet publish` |
 | HUD VPK | `dist/swift_online_music_player.vpk` | Panorama layout, styles, and icons |
+| Workshop addon | [Online Music Player (3792571203)](https://steamcommunity.com/sharedfiles/filedetails/?id=3792571203) | Production client HUD resources |
 | Installation report | `build/install-backups/<timestamp>/install-report.json` | Backup and target record for local test installs |
 
-The server plugin cannot distribute Panorama resources to clients by itself. Both server and clients must mount the same VPK through the deployment's resource-distribution mechanism.
+The server plugin, Audio plugin, and Workshop addon are separate artifacts. Deploying the server plugin does not install Audio or send Panorama resources to clients. Production uses SwiftlyS2 AddonsManager to distribute and mount the Workshop addon; local development uses the generated override VPK.
 
 ## 2. Runtime architecture
 
@@ -61,7 +62,8 @@ The HUD contains no VJS, HTML, or Panorama Audio panel and stays within the rest
 - Windows CS2 Dedicated Server
 - SwiftlyS2 `1.4.6-beta.8` or a compatible version
 - SwiftlyS2 Audio; this project references Audio API `2.0.0`
-- HUD VPK mounted by both server and clients
+- [SwiftlyS2 AddonsManager](https://github.com/SwiftlyS2-Plugins/AddonsManager) configured with Workshop `3792571203` in production
+- The same HUD VPK mounted on server and client for local testing
 
 For additional media formats or stream protocols, install FFmpeg on the server and enable `UseFFMpeg` according to the Audio plugin documentation.
 
@@ -287,11 +289,53 @@ The script:
 
 See [TESTING_CN.md](../TESTING_CN.md) for the full in-game sequence.
 
-### 8.2 Production distribution
+### 8.2 Production: Workshop + AddonsManager
 
-This repository does not publish a Workshop item or define an AddonsManager item ID. Production deployments must integrate the compiled VPK with their own client resource distribution and mounting workflow, while ensuring the server loads the identical resource version.
+The HUD resource is published on the Steam Workshop:
 
-A local `gameinfo.gi` override is not an automatic public-server distribution mechanism.
+- Name: [Online Music Player](https://steamcommunity.com/sharedfiles/filedetails/?id=3792571203)
+- Workshop ID: `3792571203`
+
+Production servers use the upstream [SwiftlyS2 AddonsManager](https://github.com/SwiftlyS2-Plugins/AddonsManager) to download and mount the resource and make the Workshop addon available to connecting clients. AddonsManager does not install SwiftOnlineMusicPlayerSW2 or SwiftlyS2 Audio; deploy both server plugins separately.
+
+1. Install AddonsManager according to its upstream README and start the server once.
+2. Open:
+
+   ```text
+   <ServerRoot>\game\csgo\addons\swiftlys2\configs\plugins\AddonsManager\config.jsonc
+   ```
+
+3. Add this Workshop ID to `Main.Addons` while preserving existing IDs:
+
+   ```jsonc
+   {
+     "Main": {
+       "Addons": [
+         "3792571203"
+       ]
+     }
+   }
+   ```
+
+4. Restart the server or reload AddonsManager using the procedure supported by the installed version.
+5. The server console can request a download and inspect mounted search paths:
+
+   ```text
+   sw_downloadaddon 3792571203
+   sw_searchpath
+   ```
+
+`sw_downloadaddon` and `sw_searchpath` are part of the upstream AddonsManager command interface. Before using `!music`, confirm the download completed and `sw_searchpath` lists the relevant Workshop/VPK resource path.
+
+Do not treat the local `gameinfo.gi` override in section 8.1 as production distribution. Production uses Workshop `3792571203` and AddonsManager.
+
+### 8.3 Production verification
+
+1. Confirm SwiftOnlineMusicPlayerSW2, Audio, and AddonsManager all load successfully.
+2. Confirm AddonsManager downloaded Workshop `3792571203` and `sw_searchpath` exposes its resource path.
+3. Connect with a client that has no local override VPK and confirm it obtains the addon.
+4. Run `!music` and validate the player, result drawer, mouse interaction, and synchronized lyrics.
+5. After a Workshop update, repeat download, mount, and clean-client verification to prevent plugin/HUD version skew.
 
 ## 9. GameData maintenance
 

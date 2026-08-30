@@ -18,81 +18,13 @@ SwiftOnlineMusicPlayerSW2 is a per-player online music player for Counter-Strike
 - Hot-reloadable configuration with server-side URL, DNS, response-size, timeout, and audio-host validation.
 - Lyrics are integrated into this project's existing HUD and VPK. HudText is not required as a plugin or additional addon.
 
-## Architecture
+## Runtime components and distribution
 
-| Component | Responsibility | Runtime |
-| --- | --- | --- |
-| SwiftlyS2 plugin | Sessions, commands, search, lyrics, audio channels, and HUD state synchronization | CS2 server |
-| SwiftlyS2 Audio | Decode online media and deliver it to selected players through CS2 VoIP | CS2 server |
-| `swift_online_music_player.vpk` | Compiled Panorama layout, styles, and icons | Server and clients |
-| Custom HUD native bridge | Write per-player dialog variables/classes and receive HUD click events | Windows `server.dll` |
+The runtime consists of this SwiftlyS2 server plugin, [SwiftlyS2 Audio](https://github.com/SwiftlyS2-Plugins/Audio), and the client HUD resources.
 
-`CCSCustomHudLayout` does not allow arbitrary VJS, HTML, or Audio panels. Online media is therefore decoded on the server by the Audio plugin while the HUD remains a presentation and interaction layer.
+The HUD is published as [Online Music Player — Workshop item 3792571203](https://steamcommunity.com/sharedfiles/filedetails/?id=3792571203). Production servers use [SwiftlyS2 AddonsManager](https://github.com/SwiftlyS2-Plugins/AddonsManager) to download, mount, and distribute this Workshop addon to players.
 
-## Quick start
-
-### Prerequisites
-
-- .NET 10 SDK
-- SwiftlyS2 `1.4.6-beta.8` or a compatible version
-- A separately installed [SwiftlyS2 Audio](https://github.com/SwiftlyS2-Plugins/Audio) plugin
-- Windows CS2 server
-- CS2 ResourceCompiler and VPKEdit CLI when building the HUD VPK
-
-### Build the server plugin
-
-```powershell
-dotnet restore .\SwiftOnlineMusicPlayerSW2.csproj
-dotnet publish .\SwiftOnlineMusicPlayerSW2.csproj -c Release
-```
-
-Published files are written to:
-
-```text
-build/publish/SwiftOnlineMusicPlayerSW2/
-```
-
-### Build the HUD resources
-
-Validate the sources without writing to a CS2 installation:
-
-```powershell
-.\tools\build_hud_resources.ps1 -Action Validate
-```
-
-Compile and package the VPK:
-
-```powershell
-.\tools\build_hud_resources.ps1 -Action Build `
-  -Cs2Root "F:\Program Files (x86)\Steam\steamapps\common\Counter-Strike Global Offensive" `
-  -VpkEditCli "F:\path\to\vpkeditcli.exe"
-```
-
-Output:
-
-```text
-dist/swift_online_music_player.vpk
-```
-
-### Install a complete local test environment
-
-```powershell
-.\install_local_test.ps1 `
-  -ServerRoot "F:\csgoserver_win\cs2" `
-  -ClientRoot "F:\Program Files (x86)\Steam\steamapps\common\Counter-Strike Global Offensive"
-```
-
-The script verifies `server.dll`, backs up existing targets, installs Audio and this plugin, copies the client/server VPK, and adds a dedicated SearchPath to both `gameinfo.gi` files. Stop the CS2 client and server before running it.
-
-For server-plugin-only deployment:
-
-```powershell
-.\build_and_deploy.ps1 -ServerRoot "F:\csgoserver_win\cs2"
-```
-
-This script does not install Audio, copy the VPK, or modify `gameinfo.gi`.
-
-See the [development guide](docs/DEVELOPMENT.md) for configuration, deployment contracts, GameData maintenance, and troubleshooting.
+Build, installation, configuration, production AddonsManager setup, local testing, and GameData maintenance are documented in the [development guide](docs/DEVELOPMENT.md).
 
 ## Player commands
 
@@ -126,11 +58,10 @@ See the [development guide](docs/DEVELOPMENT.md) for configuration, deployment c
 ## Status and limitations
 
 - The Custom HUD native bridge currently maintains Windows signatures only; Linux GameData is not provided.
-- Both the client and server must mount the generated HUD VPK.
+- Production servers must use AddonsManager to download and mount the Workshop HUD resource correctly.
 - Search and lyrics depend on third-party services whose availability is outside this project's control.
 - Web pages are not direct audio streams. YouTube, Spotify, or music-catalog page URLs cannot be used as static track URLs.
 - Favorites are connection-scoped UI state and are not persisted to the server library.
-- No public Workshop item is provided by this repository. Production resource distribution is deployment-specific.
 - Every CS2 update requires revalidation of the `server.dll` hash, unique GameData matches, and native function ABI.
 
 ## Acknowledgements

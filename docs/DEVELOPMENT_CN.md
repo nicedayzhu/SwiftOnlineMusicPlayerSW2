@@ -13,9 +13,10 @@ SwiftOnlineMusicPlayerSW2 由服务器插件与客户端 HUD 资源共同组成�
 | 插件发布目录 | `build/publish/SwiftOnlineMusicPlayerSW2/` | SwiftlyS2 服务器插件与 GameData |
 | 插件压缩包 | `SwiftOnlineMusicPlayerSW2.zip` | `dotnet publish` 后生成的分发包 |
 | HUD VPK | `dist/swift_online_music_player.vpk` | Panorama 布局、样式和图标 |
+| Workshop Addon | [Online Music Player（3792571203）](https://steamcommunity.com/sharedfiles/filedetails/?id=3792571203) | 正式服客户端 HUD 资源 |
 | 安装报告 | `build/install-backups/<timestamp>/install-report.json` | 本地测试安装的备份与目标记录 |
 
-服务器插件不能自动把 Panorama 资源发送给客户端。客户端与服务器都必须通过现有资源分发方案挂载同一个 VPK。
+服务器插件、Audio 插件和 Workshop Addon 是三个独立产物：部署服务器插件不会自动安装 Audio，也不会把 Panorama 资源发送给客户端。正式服使用 SwiftlyS2 AddonsManager 分发并挂载 Workshop Addon；本地开发才使用仓库生成的 override VPK。
 
 ## 2. 运行时架构
 
@@ -61,7 +62,8 @@ SwiftOnlineMusicPlayerSW2 由服务器插件与客户端 HUD 资源共同组成�
 - Windows CS2 Dedicated Server
 - SwiftlyS2 `1.4.6-beta.8` 或兼容版本
 - SwiftlyS2 Audio 插件；项目引用 Audio API `2.0.0`
-- 客户端与服务器均已挂载 HUD VPK
+- 正式服安装 [SwiftlyS2 AddonsManager](https://github.com/SwiftlyS2-Plugins/AddonsManager) 并配置 Workshop `3792571203`
+- 本地测试环境在客户端与服务器挂载同一版 HUD VPK
 
 若希望 Audio 处理更多媒体格式或流协议，请在服务器安装 FFmpeg，并按 Audio 插件文档启用 `UseFFMpeg`。
 
@@ -287,11 +289,53 @@ dist/swift_online_music_player.vpk
 
 更完整的实机顺序见 [TESTING_CN.md](../TESTING_CN.md)。
 
-### 8.2 生产分发
+### 8.2 正式服：Workshop + AddonsManager
 
-当前仓库没有公开 Workshop 物品，也没有固定的 AddonsManager 物品 ID。生产服应把编译后的 VPK 接入自己的客户端资源分发与挂载流程，并确保服务器加载同一资源版本。
+HUD 资源已经发布到 Steam 创意工坊：
 
-不要把本地 `gameinfo.gi` 覆盖方案误认为公共服务器的自动分发机制。
+- 名称：[Online Music Player](https://steamcommunity.com/sharedfiles/filedetails/?id=3792571203)
+- Workshop ID：`3792571203`
+
+正式服务器使用上游 [SwiftlyS2 AddonsManager](https://github.com/SwiftlyS2-Plugins/AddonsManager) 下载并挂载该资源，同时让连接的玩家客户端取得 Workshop Addon。AddonsManager 不会安装 SwiftOnlineMusicPlayerSW2 或 SwiftlyS2 Audio，这两个服务器插件仍需单独部署。
+
+1. 按 AddonsManager 上游 README 安装插件并启动服务器一次。
+2. 打开配置文件：
+
+   ```text
+   <ServerRoot>\game\csgo\addons\swiftlys2\configs\plugins\AddonsManager\config.jsonc
+   ```
+
+3. 将本项目 Workshop ID 加入 `Main.Addons`。保留服务器已有的其他 ID：
+
+   ```jsonc
+   {
+     "Main": {
+       "Addons": [
+         "3792571203"
+       ]
+     }
+   }
+   ```
+
+4. 重启服务器或按当前 AddonsManager 版本的方式重载插件。
+5. 可在服务器控制台请求立即下载并检查挂载路径：
+
+   ```text
+   sw_downloadaddon 3792571203
+   sw_searchpath
+   ```
+
+`sw_downloadaddon` 和 `sw_searchpath` 来自 AddonsManager 上游命令接口。执行 `!music` 前，应先确认下载成功，且 `sw_searchpath` 已列出对应的 Workshop/VPK 搜索路径。
+
+不要把 8.1 节的本地 `gameinfo.gi` override 当作正式服分发方案；正式服以 Workshop `3792571203` 和 AddonsManager 配置为准。
+
+### 8.3 正式服验证
+
+1. 确认 SwiftOnlineMusicPlayerSW2、Audio 和 AddonsManager 均正常加载。
+2. 确认 AddonsManager 已下载 Workshop `3792571203`，`sw_searchpath` 能看到相应资源路径。
+3. 使用没有本地 override VPK 的客户端连接服务器，确认客户端能够取得资源。
+4. 输入 `!music`，验证播放器、搜索抽屉、鼠标交互和同步歌词。
+5. Workshop 更新后重新进行下载、挂载和干净客户端验证，避免服务器插件与 HUD 资源版本不一致。
 
 ## 9. GameData 与原生桥维护
 

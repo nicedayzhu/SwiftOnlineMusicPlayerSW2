@@ -18,81 +18,13 @@ SwiftOnlineMusicPlayerSW2 是面向 Counter-Strike 2 与 SwiftlyS2 的逐玩家�
 - 配置文件支持热重载，并对 URL、DNS、响应大小、超时和音频主机执行服务端校验。
 - 歌词机制已直接集成到本项目的 HUD 与 VPK 中，不需要额外安装 HudText 插件或 addon。
 
-## 系统结构
+## 运行组成与资源分发
 
-| 组件 | 职责 | 运行位置 |
-| --- | --- | --- |
-| SwiftlyS2 插件 | 会话、命令、搜索、歌词、音频频道及 HUD 状态同步 | CS2 服务器 |
-| SwiftlyS2 Audio | 解码在线媒体并通过 CS2 VoIP 向指定玩家投递音频 | CS2 服务器 |
-| `swift_online_music_player.vpk` | 已编译的 Panorama 布局、样式和图标 | 服务器与客户端 |
-| Custom HUD 原生桥 | 写入逐玩家 dialog variable / CSS class，接收 HUD 点击事件 | Windows `server.dll` |
+本项目运行时由 SwiftlyS2 服务器插件、[SwiftlyS2 Audio](https://github.com/SwiftlyS2-Plugins/Audio) 和客户端 HUD 资源共同组成。
 
-`CCSCustomHudLayout` 不允许任意 VJS、HTML 或 Audio 面板，因此在线音频由服务器端 Audio 插件解码，HUD 只负责展示与交互。
+HUD 资源已经发布为 Steam 创意工坊项目：[Online Music Player（3792571203）](https://steamcommunity.com/sharedfiles/filedetails/?id=3792571203)。正式服务器使用 [SwiftlyS2 AddonsManager](https://github.com/SwiftlyS2-Plugins/AddonsManager) 下载、挂载并向玩家分发该 Workshop Addon。
 
-## 快速开始
-
-### 前置条件
-
-- .NET 10 SDK
-- SwiftlyS2 `1.4.6-beta.8` 或兼容版本
-- 单独安装的 [SwiftlyS2 Audio](https://github.com/SwiftlyS2-Plugins/Audio) 插件
-- Windows CS2 服务器
-- CS2 ResourceCompiler 与 VPKEdit CLI（仅构建 HUD VPK 时需要）
-
-### 构建服务器插件
-
-```powershell
-dotnet restore .\SwiftOnlineMusicPlayerSW2.csproj
-dotnet publish .\SwiftOnlineMusicPlayerSW2.csproj -c Release
-```
-
-发布结果位于：
-
-```text
-build/publish/SwiftOnlineMusicPlayerSW2/
-```
-
-### 构建 HUD 资源
-
-先做无写入验证：
-
-```powershell
-.\tools\build_hud_resources.ps1 -Action Validate
-```
-
-再编译并打包：
-
-```powershell
-.\tools\build_hud_resources.ps1 -Action Build `
-  -Cs2Root "F:\Program Files (x86)\Steam\steamapps\common\Counter-Strike Global Offensive" `
-  -VpkEditCli "F:\path\to\vpkeditcli.exe"
-```
-
-输出文件：
-
-```text
-dist/swift_online_music_player.vpk
-```
-
-### 本地完整测试安装
-
-```powershell
-.\install_local_test.ps1 `
-  -ServerRoot "F:\csgoserver_win\cs2" `
-  -ClientRoot "F:\Program Files (x86)\Steam\steamapps\common\Counter-Strike Global Offensive"
-```
-
-该脚本会校验 `server.dll`、备份现有文件、安装 Audio 与本插件、复制客户端和服务器 VPK，并写入独立的 `gameinfo.gi` SearchPath。执行前请先停止 CS2 客户端和服务器。
-
-只部署服务器插件可使用：
-
-```powershell
-.\build_and_deploy.ps1 -ServerRoot "F:\csgoserver_win\cs2"
-```
-
-这个脚本不会安装 Audio、复制 VPK 或修改 `gameinfo.gi`。
-
-完整构建、部署、配置、GameData 维护和排错说明见 [开发者文档](docs/DEVELOPMENT_CN.md)。
+编译、安装、配置、正式服 AddonsManager 接入、本地测试与 GameData 维护统一收录在 [开发者文档](docs/DEVELOPMENT_CN.md) 中。
 
 ## 玩家命令
 
@@ -126,11 +58,10 @@ dist/swift_online_music_player.vpk
 ## 当前状态与限制
 
 - 当前 Custom HUD 原生桥只维护 Windows 签名；Linux GameData 尚未提供。
-- 客户端与服务器必须同时挂载生成的 HUD VPK，否则界面无法显示。
+- 正式服必须通过 AddonsManager 正确下载并挂载 Workshop HUD 资源，否则界面无法显示。
 - 在线搜索与歌词依赖第三方接口，项目无法保证其长期可用性。
 - 网页链接不是直接音频流。YouTube、Spotify、网易云网页等不能直接作为静态曲目 URL。
 - 收藏只在当前连接会话内保存，不会持久化为服务器曲库。
-- 当前仓库未提供公开 Workshop 物品；生产环境的资源分发方式由服务器运维方案决定。
 - CS2 更新后必须重新验证 `server.dll` 哈希、GameData 唯一命中与函数 ABI。
 
 ## 致谢与第三方项目
